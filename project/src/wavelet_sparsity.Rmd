@@ -2,12 +2,16 @@
 title: 'Wavelets: Sparsity issue'
 author: "Kushal K Dey"
 date: "December 11, 2015"
-output: html_document
+output: 
+  html_document:
+    toc: true
 ---
 
-In this script, we start with wavelet modeling of a function and then use the wavelet technique to perform factor analysis (sparse factor analysis) for a toy example 
+## Background
 
-## Toy example
+In this script, we start with wavelet modeling of a function. We discuss the concept of padding we use generously and try to get a sense of how the sparsity structure of wavelet transforms change depending on smoothness of the function. The intuition was that the more smoother the function is, the sparser the wavelet transform would be.
+
+## Toy example function
 
 ```{r echo=TRUE, eval=TRUE}
 
@@ -21,13 +25,17 @@ cell_times_sim <- sort(sample(seq(0,2*pi, 2*pi/(num_cells-1)), num_cells, replac
 cycle_data <- sim_sinusoidal_cycle(G, amp_genes, phi_genes, sigma_genes, cell_times_sim);
 ```
 
-We generate a toy example of `r G` sinusoidal gene expression patterns across `r num_cells` time points (synchronized for all genes). We first focus on the sine curve function for one gene (the first gene). The pattern is given below
+We generate a toy example of `r G` sinusoidal gene expression patterns across `r num_cells` time points (synchronized for all genes). **We here focus on the sine curve function for one gene (the first gene)**. The pattern is given below
 
 ```{r eho=TRUE, eval=TRUE}
 plot(cycle_data[,1], type="l")
 ```
 
-We now apply the wavelet transform using the *Wavethresh* package and see what wavelet coefficients we get and how good an approximation to the original function is obtained. 
+## Wavelet Transform
+
+We now apply the wavelet transform using the *Wavethresh* package and see what wavelet coefficients we get and how good an approximation to the original function is obtained. However, to fit wavelet transform on a vector using this package, the length of the vector has to be a power of $2$. To deal with this, we use a truncation of the original vector or padding of the vector with zeros at the end.
+
+### Truncating the function
 
 We use the truncation
 
@@ -39,6 +47,8 @@ wd1 <- wd(data2, filter.number = 1, family="DaubExPhase")
 wr1 <- wr(wd1)
 plot(wr1, type="l")
 ```
+
+### Padding the function with zeros
 
 We use the padding with 0 now.
 
@@ -52,38 +62,49 @@ wr2 <- wr(wd2)
 plot(wr2, type="l")
 ```
 
+### Comparing sparsity
 
-We look at how many non-zero wavelet coefficients are obtained, remember that wavelet representation should be sparse for smoothly varying functions in particular. 
+We look at how many non-zero wavelet coefficients are obtained, for the two scenarios- the one where the function is truncated and the other where it is padded with zeros.
 
 ```{r echo=TRUE, eval=TRUE}
 length(which(wd1$D > 0)) / length(wd1$D)
 length(which(wd2$D > 0)) / length(wd2$D)
 ```
 
-Now suppose that the original cell times are not known. In this case, we know some permutation of the cell times and the pattern of the gene expression under this permutation is much more haphazard. In this case, there is less structure in the
-patterns of gene expression and so, we expect the wavelet transform to not be as sparse as previous case.
+## Sample re-ordering 
 
-We start with a permutation.
+Now suppose that the original times of the sinusoidal time series pattern are not known. Instead, we know some permutation of the true times and the pattern of the gene expression under this permutation is much more haphazard. We wish to see how the sparsity of the wavelet transform under the sample re-ordered case compared compared to the one for the true order. 
+
+### An example use of re-ordering time series
+
+We start with a permutation. The function plot of the re-ordering under thresholding.
 
 ```{r echo=TRUE, eval=TRUE}
 data2_perm <- sample(data2,length(data2), replace=FALSE);
 plot(data2_perm, type="l")
+```
+
+The function plot of the re-ordering of the function under padding.
+
+```{r echo=TRUE, eval=TRUE}
 data3_perm <- sample(data3,length(data3), replace=FALSE);
 plot(data3_perm, type="l")
 ```
 
-Now we model using wavelets 
+Now we model using wavelets. First, on the function with truncation.
 
 ```{r echo=TRUE, eval=TRUE}
 wd1_perm <- wd(data2_perm, filter.number = 1, family="DaubExPhase")
 wr1_perm <- wr(wd1_perm)
 plot(wr1_perm, type="l")
+```
 
+Next, we do the same on the function with padding of zeros.
+
+```{r echo=TRUE, eval=TRUE}
 wd2_perm <- wd(data3_perm, filter.number = 1, family="DaubExPhase")
 wr2_perm <- wr(wd2_perm)
 plot(wr2_perm, type="l")
-
-
 ```
 
 Now check the number of non-zero wavelet coefficients 
@@ -92,6 +113,8 @@ Now check the number of non-zero wavelet coefficients
 length(which(wd1_perm$D > 0)) / length(wd1_perm$D)
 length(which(wd2_perm$D > 0)) / length(wd2_perm$D)
 ```
+
+### Running multple instances of time re-ordering 
 
 We now repeat this sample permutation many times, obtain a distribution of number of non-zero wavelet coefficients in each case and then check where the true value (corresponding to actual ordering) lies.
 
@@ -109,18 +132,27 @@ for(n in 1:num_perms)
   prop_wd1[n] = length(which(wd1_perm$D > 0)) / length(wd1_perm$D);
   prop_wd2[n] = length(which(wd2_perm$D > 0)) / length(wd2_perm$D);
 }
-
-plot(density(prop_wd1));
-abline(v=length(which(wd1$D > 0)) / length(wd1$D), col="red")
-
-plot(density(prop_wd2), xlim=c(0.2,0.6));
-abline(v=length(which(wd2$D > 0)) / length(wd2$D), col="red")
-
-
 ```
 
-So, it seems that it is not really true that a false ordering which makes the pattern non-smooth corresponds to more non-zero wavelet coefficients. It worked that way when padded with zeros, but otherwise it is not so convincing for the
-case where the first case with truncated gene expression.
+We first plot the distribution of sparsity under time re-ordering for truncated function case.
+
+```{r echo=TRUE, eval=TRUE}
+plot(density(prop_wd1));
+abline(v=length(which(wd1$D > 0)) / length(wd1$D), col="red")
+```
+
+Next, we do it for function with padding of zeros.
+
+```{r echo=TRUE, eval=TRUE}
+plot(density(prop_wd2), xlim=c(0.2,0.6));
+abline(v=length(which(wd2$D > 0)) / length(wd2$D), col="red")
+```
+
+## Conclusions
+
+So, it seems that it is not really true that a false ordering which makes the pattern non-smooth corresponds to more non-zero wavelet coefficients. Our intuition seemed true for the case where the function was padded with zeros, but that couls be because there was a piecewise constant part under the true order which would lead to more sparsity. However, this did not seem true for the first scenario, where we just truncate the function.
+
+
 
 
 
