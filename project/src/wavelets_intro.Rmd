@@ -1,9 +1,12 @@
 ---
-title: 'Wavelets for Noobs'
+title: 'Wavelets (Noob Level)'
 author: "Kushal K Dey"
 date: "December 9, 2015"
 output: html_document
 ---
+
+These are my personal notes on wavelets, mainly for the sake of going back to these for references and cleaner understanding in future.
+
 
 ## Wavelets Introduction
 
@@ -11,9 +14,9 @@ Wavelets are objects that oscillate but decay fast in time, hence are 'little'. 
 
 (@eq01) $$
 \begin{aligned} 
-\psi (x) & = 1      x \in [0, 0.5] \\
-         & = -1     x \in [0.5,1] \\
-         & = 0      elsewhere 
+\psi (x) & = 1,     x \in [0, 0.5] \\
+         & = -1,     x \in [0.5,1] \\
+         & = 0,     elsewhere 
 \end{aligned}
 $$
 
@@ -42,6 +45,8 @@ if $J$ is large, then it is called fine-scaled approximation, if $J$ is low, the
 
 To compute wavelet transform, use the function *wd* in **wavethresh** R package. Computation of the wavelet coefficients is a $O(n)$ operation while Fourier coefficients using Fast Fourier Transform *fft** is a $O(n log n)$ operation. So, for large $n$, wavelet coefficients are computed in lesser time. 
 
+## Multi-scale Analysis
+
 The term 'multiscale' means representing a function at a set of scales, where these scales are generated simultaneously.
 The history of wavelets is covered by Jawerth and Swelden (1994).
 
@@ -65,7 +70,7 @@ $$ c_{J-2,l} = c_{J-1,2l} + c_{J-1, 2l-1} $$
 
 and then continue as above to produce detail and smoothed coefficients at consecutively coarser scales. Here $d_{j,k}$ represents detail or wavelet coefficients and $c_{j,k}$ the scaling or father wavelet coefficients. 
 
-<img src='multires.png' style="width:450px;height:300px;">
+<img src='../figs/multires.png' style="width:450px;height:300px;">
 
 This pyramid algorithm is a type of Discrete Wavelet Transform (DWT) for vectors. The wavelets underlying the transform above are the Haar wavelets. The original sequence we can get back exactly using the $d_{j,k}$ and $c_{0,0}$ as follows 
 
@@ -137,7 +142,7 @@ We now define the *dilation equation*. Since $\{ \phi_{1,k}(x) \}$ represents th
 
 $$ \phi(x)  = \sum_{n} h_{1,n} \phi_{1,n}(x) $$
 
-### Daubechis Theorem
+## Daubechis Theorem
 
 if $\{ V_j \}$ with $\phi$ represents a MRA for $L^2(\mathbb{R})$, then we can find an orthonormal wavelet basis $\psi_{j,k}$, that satisfies 
 
@@ -147,7 +152,7 @@ One possibility for construction of $\psi(x)$ is given by
 
 $$ \hat{\psi}(\omega) = exp(i\omega/2) \bar{m_0 (\omega/2 + \pi)} \hat{\phi}(\frac{\omega}{2}) $$
 
-$$ m_0 (\omega) = \fraac{1}{\sqrt{2}} \sum_{n} h_n exp(-in \omega) $$
+$$ m_0 (\omega) = \frac{1}{\sqrt{2}} \sum_{n} h_n exp(-in \omega) $$
 
 or equivalently
 
