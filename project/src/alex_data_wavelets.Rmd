@@ -2,12 +2,16 @@
 title: 'Wavelets: applying SFA and NTM on Alex bird data'
 author: "Kushal K Dey"
 date: "December 13, 2015"
-output: html_document
+output: 
+  html_document:
+    toc: true
 ---
 
 ## Background
 
 We apply the penalized matrix decomposition (PMD) and the Normal Topic Model (NTM) with and without wavelet transformation on the bird abundance data in Himalayas from Trevor Price's lab. 
+
+## Data Pre-processing
 
 ```{r echo=TRUE, eval=TRUE}
 data=read.csv("../external_data/Himalayan_grid_matrix.csv",header=TRUE);
