@@ -1,0 +1,110 @@
+---
+title: 'Wavelets: extracting sinusoidal factors'
+author: "Kushal K Dey"
+date: "December 12, 2015"
+output: html_document
+---
+
+In this script, we use the wavelet technique for a sinusoidal time series function and then perform factor analysis on the wavelet transforms. We use sparse factor analysis due to PMD method of Witten and Tibshirani. 
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+library(cellcycleR)
+library(wavethresh)
+G <- 100;
+num_cells <- 256;
+amp_genes1 <- rep(10, G);
+phi_genes1 <- rep(c(2,5), each=G/2);
+sigma_genes1 <- rchisq(G, 4);
+cell_times_sim <- sort(sample(seq(0,2*pi, 2*pi/(num_cells-1)), num_cells, replace=FALSE));
+cycle_data <- sim_sinusoidal_cycle(G, amp_genes1, phi_genes1, sigma_genes1, cell_times_sim);
+```
+
+The sinusoidal patterns for two cases from the tw groups given as follows 
+```{r echo=TRUE, eval=TRUE}
+plot(cycle_data[,2], type="l");
+plot(cycle_data[,(2+G/2)], type="l")
+
+```
+
+
+We generate a toy example of `r G` sinusoidal gene expression patterns across `r num_cells` time points (synchronized for all genes). We save the data in a file.
+
+```{r echo=TRUE, eval=TRUE}
+setwd('/Users/kushal/Documents/Matthew Stephens Project/Non Technical/wavelets/')
+write.table(cycle_data, "cycle_data.txt", col.names = F, row.names = F);
+```
+
+Next we apply the decomposition of the data matrix using the *PMD()* function of the **PMA** package. 
+
+```{r echo=TRUE, eval=TRUE}
+pmd1 <- PMD(cycle_data, type="standard", K=2, niter=50);
+
+pos1<- apply(pmd1$v, c(1,2), function(x) return (max(x,0)))
+neg1 <- apply(pmd1$v, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos1), col=2:3)
+barplot(t(neg1), col=2:3, add=TRUE)
+
+plot(pmd1$v[,1], type="l")
+plot(pmd1$v[,2], type="l")
+
+pos2 <- apply(pmd1$u, c(1,2), function(x) return (max(x,0)))
+neg2 <- apply(pmd1$u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos2), col=2:3)
+barplot(t(neg2), col=2:3, add=TRUE)
+
+```
+
+
+
+We now first apply wavelet transform on the genes/ columns for the data matrix.
+
+```{r echo=TRUE, eval=TRUE}
+
+wave_data <- t(apply(cycle_data, 2, function(x)
+                                  {
+                                      out <- wd(x, filter.number = 3, family = "DaubExPhase")
+                                      return(out$D)
+                                  }));
+```
+
+
+Now apply the decomposition of this wavelet transformed data matrix using the *PMD()* function of **PMA** package.
+
+```{r echo=TRUE, eval=TRUE}
+pmd2 <- PMD(wave_data, type="standard", K=2, niter=50);
+
+pos1<- apply(pmd2$v, c(1,2), function(x) return (max(x,0)))
+neg1 <- apply(pmd2$v, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos1), col=2:3)
+barplot(t(neg1), col=2:3, add=TRUE)
+
+plot(pmd2$v[,1], type="l")
+plot(pmd2$v[,2], type="l")
+
+pos2 <- apply(pmd2$u, c(1,2), function(x) return (max(x,0)))
+neg2 <- apply(pmd2$u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos2), col=2:3)
+barplot(t(neg2), col=2:3, add=TRUE)
+
+
+```
+
+We now recreate the factors in the actual space by reverse transforming the factors produced from applying sparse factor analysis on the wavelet transformed data matrix.
+
+```{r echo=TRUE, eval=TRUE}
+W <- GenW(n=num_cells, filter.number=3, family="DaubExPhase")
+idwt <- W[,-1] %*% pmd2$v;
+plot(idwt[,1], type="l")
+plot(idwt[,2], type="l")
+
+```
+

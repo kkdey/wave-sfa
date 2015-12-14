@@ -1,0 +1,92 @@
+---
+title: 'Wavelets: applying normal topic model on sinusoidal patterns'
+author: "Kushal K Dey"
+date: "December 13, 2015"
+output: html_document
+---
+
+In this script, we apply the Normal Topic Model (NTM) on sinusoidally varying gene expression data matrix with and without wavelet transformation. The idea is to replicate patterns similar to sparse factor analysis, but to focus more on clustering the samples based on the expression patterns.
+
+```{r echo=TRUE, eval=TRUE}
+source('ntmfit.R')
+```
+
+We apply the NTM fit on a toy example (same example as in *pmd_wavelets.html*).
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+library(cellcycleR)
+library(wavethresh)
+G <- 100;
+num_cells <- 256;
+amp_genes1 <- rep(10, G);
+phi_genes1 <- rep(c(2,5), each=G/2);
+sigma_genes1 <- rchisq(G, 4);
+cell_times_sim <- sort(sample(seq(0,2*pi, 2*pi/(num_cells-1)), num_cells, replace=FALSE));
+cycle_data <- t(sim_sinusoidal_cycle(G, amp_genes1, phi_genes1, sigma_genes1, cell_times_sim));
+
+```
+
+The example plots from above example
+
+```{r echo=TRUE, eval=TRUE}
+plot(cycle_data[2,], type="l");
+plot(cycle_data[(2+G/2), ], type="l")
+```
+
+Next, we apply the *NTMfit()* function on the this data.
+
+```{r echo=TRUE, eval=TRUE}
+system.time(out1 <- NTMfit(cycle_data, K=2));
+```
+
+We plot the Structure plot for the topic proportions obtained from the model fit.
+
+```{r echo=TRUE, eval=TRUE}
+K <- 2;
+barplot(t(out1$omega_out),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+title(main=paste("Structure Plot topic proportions,k=",K))
+
+plot(out1$alpha_out[1,], type="l")
+plot(out1$alpha_out[2,], type="l")
+
+```
+
+
+```{r echo=TRUE, eval=TRUE}
+
+wave_data <- t(apply(cycle_data, 1, function(x)
+                                  {
+                                      out <- wd(x, filter.number = 3, family = "DaubExPhase")
+                                      return(out$D)
+                                  }));
+```
+
+Now apply *NTMfit()* function on the this wavelet-transformed data.
+
+```{r echo=TRUE, eval=TRUE}
+system.time(out2 <- NTMfit(wave_data, K=2));
+```
+
+
+We plot the Structure plot for the topic proportions obtained from the above model fit.
+
+```{r echo=TRUE, eval=TRUE}
+K <- 2;
+barplot(t(out2$omega_out),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+title(main=paste("Structure Plot topic proportions,k=",K))
+
+```
+
+Reforming the cluster patterns by reverse transforming the *alpha* output from the *NTMfit()* model fit above.
+
+```{r echo=TRUE, eval=TRUE}
+W <- GenW(n=num_cells, filter.number=3, family="DaubExPhase")
+idwt <- W[,-1] %*% t(out2$alpha_out);
+plot(idwt[,1], type="l")
+plot(idwt[,2], type="l")
+
+```
+
+The NTM (Normal Topic model) does a pretty decent job at clustering the two groups of sinusoidal wave patterns both without and with wavelet transforms.
+

@@ -1,0 +1,154 @@
+---
+title: 'Wavelets: applying SFA and NTM on Alex bird data'
+author: "Kushal K Dey"
+date: "December 13, 2015"
+output: html_document
+---
+
+```{r echo=TRUE, eval=TRUE}
+data=read.csv("../external_data/Himalayan_grid_matrix.csv",header=TRUE);
+
+counts=as.matrix(data[,-1]);
+
+rownames(counts)=data[,1];
+
+new_data1 <- data.frame(read.csv('../external_data/MohanGrids.csv'));
+new_data2 <- data.frame(read.csv('../external_data/MohanGrids2.csv'));
+
+bird_species <- union(as.vector(colnames(counts)), union(as.vector(new_data1[,1]), as.vector(new_data2[,1])));
+
+new_data <- matrix(0,dim(counts)[1]+3,length(bird_species));
+new_data[1,match(new_data1[,1],bird_species)]=new_data1[,2];
+new_data[2,match(new_data1[,1],bird_species)]=new_data1[,3];
+new_data[3,match(new_data2[,1],bird_species)]=new_data2[,2];
+new_data[4:(dim(counts)[1]+3),match(colnames(counts),bird_species)]=counts;
+
+new_counts <- as.matrix(new_data);
+
+rownames(new_counts) <- c(c("U1","U2","MA1"),rownames(counts));
+colnames(new_counts) <- bird_species;
+
+```
+
+```{r echo=TRUE, eval=TRUE}
+bodymass_data <- read.csv('../external_data/massKushal.csv');
+
+bodymass_val <- bodymass_data[,2];
+bodymass_birds <- bodymass_data[,1];
+
+bodymass_matched <- bodymass_data[match(bird_species,bodymass_birds),2];
+
+new_counts_sorted <- new_counts[, order(bodymass_matched, decreasing = TRUE)];
+
+
+```
+
+Padding 0s in the end
+
+```{r echo=TRUE, eval=TRUE}
+padded_counts <- t(apply(new_counts_sorted, 1, function(x)
+                                             {
+                                                  y=x;
+                                                  length(y)<-512;
+                                                  y[is.na(y)]<-0
+                                                  return(y)
+                                             }))
+padded_data <- log((padded_counts+0.5))
+
+```
+
+Now we apply *PMD()* function of package **PMA** on the padded counts data.
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+pmd1 <- PMD(padded_data[-(1:3),], type="standard", K=2, niter=50);
+
+metadata=read.csv("../external_data/Himalayan_grid_metadata.csv",header=TRUE);
+elevation_metadata=metadata$Elevation[match(rownames(padded_data[-(1:3),]),metadata[,1])];
+
+east_west_dir = metadata$WorE[match(rownames(padded_data[-(1:3),]),metadata[,1])];
+
+pos1<- apply(pmd1$v, c(1,2), function(x) return (max(x,0)))
+neg1 <- apply(pmd1$v, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos1), col=2:3)
+barplot(t(neg1), col=2:3, add=TRUE)
+
+plot(pmd1$v[,1], type="l")
+plot(pmd1$v[,2], type="l")
+
+pos2 <- apply(pmd1$u[order(elevation_metadata),], c(1,2), function(x) return (max(x,0)))
+neg2 <- apply(pmd1$u[order(elevation_metadata),], c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos2), col=2:3)
+barplot(t(neg2), col=2:3, add=TRUE)
+
+
+```
+
+We apply the *NTMfit()* function for normal topic model on this data for $K=2$.
+
+```{r echo=TRUE, eval=TRUE}
+source('../R/ntmfit.R')
+system.time(out1 <- NTMfit(padded_data[-(1:3),], K=2));
+
+K <- 2;
+barplot(t(out1$omega_out[order(elevation_metadata),]),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+title(main=paste("Structure Plot topic proportions,k=",K))
+combo_patch_dir = paste0(elevation_metadata,"_",east_west_dir);
+combo_patch_dir_ordered = combo_patch_dir[order(elevation_metadata)];
+
+match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+  
+axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+abline(v=match_labs[2:length(match_labs)]);
+
+
+plot(out1$alpha_out[1,], type="l")
+plot(out1$alpha_out[2,], type="l")
+
+
+
+```
+
+Now we perform wavelet transformation.
+
+```{r echo=TRUE, eval=TRUE}
+library(wavethresh)
+wave_data <- t(apply(padded_data[-(1:3),], 1, function(x)
+                                  {
+                                      out <- wd(x, filter.number = 3, family = "DaubExPhase")
+                                      return(out$D)
+                                  }));
+
+K <- 2;
+system.time(out2 <- NTMfit(wave_data, K=2));
+
+barplot(t(out2$omega_out[order(elevation_metadata),]),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+title(main=paste("Structure Plot topic proportions,k=",K))
+combo_patch_dir = paste0(elevation_metadata,"_",east_west_dir);
+combo_patch_dir_ordered = combo_patch_dir[order(elevation_metadata)];
+
+match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+  
+axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+abline(v=match_labs[2:length(match_labs)]);
+
+
+W <- GenW(n=512, filter.number=3, family="DaubExPhase")
+idwt <- W[,-1] %*% t(out2$alpha_out);
+plot(idwt[,1], type="l")
+plot(idwt[,2], type="l")
+
+
+
+```
+
