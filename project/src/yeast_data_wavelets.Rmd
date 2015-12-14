@@ -1,0 +1,181 @@
+---
+title: 'Wavelets: applying SFA and NTM on yeast (elu) data'
+author: "Kushal K Dey"
+date: "December 13, 2015"
+output: html_document
+---
+
+We consider the synchronized yeast cell expression across time in Botstein [paper](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC25624/). 
+The data was collected from [Yeast Protein Database](http://quest7.proteome.com/YPDhome.html). 
+
+## elu Data analysis
+
+### Data exploration
+
+```{r echo=TRUE, eval=TRUE}
+setwd("/Users/kushal/Documents/singleCell-method/project/analysis/")
+data <- read.table("../data/Botstein_data/botstein_cdc.txt", sep="\t", header=TRUE, fill=TRUE);
+cdc_data <- data[,grep("elu",colnames(data))];
+
+fillNAgaps <- function(x, firstBack=FALSE) {
+    ## NA's in a vector or factor are replaced with last non-NA values
+    ## If firstBack is TRUE, it will fill in leading NA's with the first
+    ## non-NA value. If FALSE, it will not change leading NA's.
+    
+    # If it's a factor, store the level labels and convert to integer
+    lvls <- NULL
+    if (is.factor(x)) {
+        lvls <- levels(x)
+        x    <- as.integer(x)
+    }
+ 
+    goodIdx <- !is.na(x)
+ 
+    # These are the non-NA values from x only
+    # Add a leading NA or take the first good value, depending on firstBack   
+    if (firstBack)   goodVals <- c(x[goodIdx][1], x[goodIdx])
+    else             goodVals <- c(NA,            x[goodIdx])
+
+    # Fill the indices of the output vector with the indices pulled from
+    # these offsets of goodVals. Add 1 to avoid indexing to zero.
+    fillIdx <- cumsum(goodIdx)+1
+    
+    x <- goodVals[fillIdx]
+
+    # If it was originally a factor, convert it back
+    if (!is.null(lvls)) {
+        x <- factor(x, levels=seq_along(lvls), labels=lvls)
+    }
+
+    x
+}
+
+cdc_data <- cdc_data[rowSums(is.na(cdc_data)) < (dim(cdc_data)[2] - 4),];
+cdc_data_mod <- t(apply(cdc_data, 1, function(x) fillNAgaps(x, firstBack = TRUE)));
+
+cycle_data <- cdc_data_mod;
+dim(cycle_data)
+```
+
+
+```{r echo=TRUE, eval=TRUE}
+cycle_data_norm <- apply(cycle_data,1,function(x)  return (x-mean(x))/sd(x))
+cycle_data_norm <- cycle_data_norm[, -which(colSums(cycle_data_norm)==0)]
+
+dim(cycle_data_norm)
+
+```
+
+Padding with $0$ values.
+
+```{r echo=TRUE, eval=TRUE}
+padded_data <- t(apply(cycle_data_norm, 2, function(x)
+                                             {
+                                                  y=x;
+                                                  length(y)<-32;
+                                                  y[is.na(y)]<-0
+                                                  return(y)
+                                             }))
+
+```
+
+Now we first apply the *PMD()* function of the **PMA** package.
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+pmd1 <- PMD(padded_data, type="standard", K=2, niter=50);
+
+
+pos1<- apply(pmd1$v, c(1,2), function(x) return (max(x,0)))
+neg1 <- apply(pmd1$v, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos1), col=2:3)
+barplot(t(neg1), col=2:3, add=TRUE)
+
+plot(pmd1$v[,1], type="l")
+plot(pmd1$v[,2], type="l")
+
+pos2 <- apply(pmd1$u, c(1,2), function(x) return (max(x,0)))
+neg2 <- apply(pmd1$u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos2), col=2:3)
+barplot(t(neg2), col=2:3, add=TRUE)
+
+```
+
+Now we apply the NTM model
+
+```{r echo=TRUE, eval=TRUE}
+source('../R/ntmfit.R')
+system.time(out1 <- NTMfit(padded_data, K=2));
+K <- 2;
+barplot(t(out1$omega_out),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+
+plot(out1$alpha_out[1,], type="l")
+plot(out1$alpha_out[2,], type="l")
+```
+
+We now compute the wavelet transformation of the data matrix.
+
+```{r echo=TRUE, eval=TRUE}
+library(wavethresh)
+wave_data <- t(apply(padded_data, 1, function(x)
+                                  {
+                                      out <- wd(x, filter.number = 3, family = "DaubExPhase")
+                                      return(out$D)
+                                  }));
+
+
+```
+
+We apply factor analysis on the wave-transformed data.
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+pmd1 <- PMD(wave_data, type="standard", K=2, niter=50);
+
+
+pos1<- apply(pmd1$v, c(1,2), function(x) return (max(x,0)))
+neg1 <- apply(pmd1$v, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos1), col=2:3)
+barplot(t(neg1), col=2:3, add=TRUE)
+
+plot(pmd1$v[,1], type="l")
+plot(pmd1$v[,2], type="l")
+
+pos2 <- apply(pmd1$u, c(1,2), function(x) return (max(x,0)))
+neg2 <- apply(pmd1$u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos2), col=2:3)
+barplot(t(neg2), col=2:3, add=TRUE)
+
+W <- GenW(n=32, filter.number=3, family="DaubExPhase")
+idwt <- W[,-1] %*% pmd1$v;
+plot(idwt[,1], type="l")
+plot(idwt[,2], type="l")
+
+
+
+```
+
+Next we apply the NTM model
+
+```{r echo=TRUE, eval=TRUE}
+K <- 2;
+system.time(out2 <- NTMfit(wave_data, K=2));
+
+barplot(t(out2$omega_out),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+title(main=paste("Structure Plot topic proportions,k=",K))
+
+W <- GenW(n=32, filter.number=3, family="DaubExPhase")
+idwt <- W[,-1] %*% t(out2$alpha_out);
+plot(idwt[,1], type="l")
+plot(idwt[,2], type="l")
+
+```
+

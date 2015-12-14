@@ -1,0 +1,142 @@
+SFA Version 1.0 released in July 2010 by B. Engelhardt and M. Stephens
+This software applies sparse factor analysis to an input matrix
+
+Please cite: BE Engelhardt and M Stephens (2010) "Analysis of
+population structure: a unifying framework and novel methods based on
+sparse factor analysis." PLoS Genetics (in press)
+
+PREREQUISITES
+
+In order to compile this program, you need to have the GNU Scientific
+Library (GSL) in your path. Download and install this software from:
+
+http://www.gnu.org/software/gsl/
+
+INSTALLIATION
+
+To compile this software on your computer, run the following commands:
+
+gunzip sfa1.0.tar.gz
+tar xvf sfa1.0.tar
+cd sfa
+cd src
+make clean
+make
+
+This should produce an executable called sfa
+
+If this is not working, we include mac and linux executables in the bin/ directory that you can use (hopefully) straight away.
+
+SFA is a command line program. In your terminal window type ./sfa -h for more help. See also the pdf instructions.
+
+COMMAND LINE OPTIONS
+
+All options are case-sensitive.
+ 
+ FILE I/O RELATED OPTIONS
+ -gen(otype): 
+ 	       specify input genotype file (G (individuals) rows, N (loci) columns) with no missing values
+ -o or -out(put):
+     specify the prefix of all output files, use random seed as a default value
+ -r or -rand:
+     specify random seed, use system time as default
+ -iter: number of iterations of ECME, default is 20     
+ -t: transpose the matrix after it is read in
+ 
+ MODEL OPTIONS
+ -mg: include a mean vector for the n rows (default is no mean vector)
+ -vg: the psi variables are the n row variances (default)
+ -mn: include a mean vector for the p columns (default is no mean vector)
+ -vn: the psi variables are the p column variances
+ 
+ OTHER OPTIONS
+ -h or -hel(p): print this help
+
+INPUT
+
+Input to the method is a n (number of individuals) by g (number of
+loci) matrix with spaces or tabs in between the columns, with no
+header and no row or column names. If this matrix needs to be
+transposed, then you can input the transposed version of the matrix
+with the -t command line option. See examples in /input folder. There
+are no requirements of this matrix, and in particular it does not need
+to be genotypes.
+
+OUTPUT
+
+There are a number of output files:
+
+<output>_lambda.out: the file of factor loadings, which is a nxK matrix
+<output>_F.out: the file of factors, which is a Kxp matrix
+<output>_alpha.out: the file of the variance parameters, which is an n-vector (when residual variances are on individuals)
+<output>_eta.out: the file of the variance parameters, which is a p-vector (when residual variances are on SNPs)
+<output>_sigma2.out: the file of the factor loading variance parameters, which is a nxp matrix
+<output>_mug.out: the file of the mean parameters, which is an n-vector -- might not exist when it is not included in model
+<output>_mun.out: the file of the mean parameters, which is a p-vector -- might not exist when it is not included in model
+
+In general, you will probably be most interested in the first or second files. 
+You can read the lambda matrix into the software package R and plot them against each other.
+   lambda <- read.table("<output>_lambda.out")
+   plot(lambda[,1])
+   plot(lambda[,1], lambda[,2])
+
+EXAMPLES & INTUITIONS
+
+# hapmap example with three populations/factors
+./sfa -gen ../input/hapmap.sfa -g 210 -k 3 -n 1859 -iter 400 -rand 284 -o test
+
+# square grid isolation-by-distance example with two factors, mean term 
+
+./sfa -gen ../input/habitat1.sfa -g 225 -k 2 -n 1000 -iter 20 -rand 810 -mn -o test2
+
+./sfa -gen ../input/habitat1.sfa -g 225 -k 2 -n 1000 -iter 20 -rand 482 -mn -vn -o test3
+
+# two independent square 2-D habitats
+
+./sfa -gen ../input/habitats1and2.sfa -g 450 -n 1000 -k 6 -rand 115 -iter 100 -o test2hab
+
+# isolation-by-distance model
+./sfa -gen ../input/ibd.sfa -g 100 -k 2 -n 1000 -iter 20 -rand 234 -o testibd1 
+
+./sfa -gen ../input/ibd.sfa -g 100 -k 1 -n 1000 -iter 20 -rand 111 -mn -o testibd2 
+
+# isolation-by-distance model with clustered samples
+
+./sfa -gen ../input/ibd-grouped.sfa -g 100 -k 2 -n 1000 -iter 20 -rand 123 -o testibdc1
+
+./sfa -gen ../input/ibd-grouped.sfa -g 100 -k 5 -n 1000 -iter 2000 -rand 173 -o testibdc2
+
+./sfa -gen ../input/ibd-grouped.sfa -g 100 -k 1 -n 1000 -iter 20 -rand 34 -mn -o testibdc3 
+
+
+
+habitat1.sfa			    hapmap.sfa	     ibd.sfa
+habitats1and2.sfa		    ibd-grouped.sfa
+
+
+The expected complete log likelihood is not the likelihood that is
+being explicitly maximized, so it might increase monotonically. The
+marginal log likelihood, however, should increase (fairly)
+monotonically, and converge to a stable position. Since we make minor
+approximations in the algorithm, it is possible that the marginal log
+likelihood will decrease slightly near or at convergence.
+
+In general, more iterations yield a sparser solution; fewer iterations
+yield a less sparse solution, but too few iterations, and the method
+hasn't converged. Min number of iterations is around 20.
+
+Try different random seeds and compute the correlation of the
+resulting lambda and factors to see which are stable and which are
+not.
+
+Try different values for K, the number of factors
+
+Remove individuals that appear to be outliers
+
+QUESTIONS?
+
+We (BE and MS) will continue to develop this method and integrate our
+new developments into this software.  For questions related to the
+software, email Barbara Engelhardt at engelhardt-at-uchicago.edu or
+visit us at http://stephenslab.uchicago.edu/software.html
+
