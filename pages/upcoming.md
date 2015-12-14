@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "A comparative study of primate translation divergence"
+title: "A wavelet method to sparse factor and topic modeling"
 tagline: 
 ---
 
-Coming soon!
+

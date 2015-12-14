@@ -4,7 +4,7 @@ title: License
 description: 
 ---
 
-Copyright (C) 2015 Kushal K Dey and Chiaowen Joyce Hsiao
+Copyright (C) 2015 Kushal K Dey 
 
 Code is released under the GPLv3 license.
 
