@@ -2,17 +2,25 @@
 title: 'Wavelets: applying normal topic model on curve patterns'
 author: "Kushal K Dey"
 date: "December 13, 2015"
-output: html_document
+output: 
+  html_document:
+    toc: true
 ---
 
-In this script, we apply the Normal Topic Model (NTM) on mixture of sinusoidal gene expression data matrix with and without wavelet transformation. The idea is to replicate patterns similar to sparse factor analysis, but to focus more on clustering the samples based on the expression patterns.
+## Background
+
+In this script, we apply the Normal Topic Model (NTM) on mixture of sinusoidally varying gene expression data matrix with and without wavelet transformation. The idea is to replicate patterns similar to sparse factor analysis, but to focus more on clustering the samples based on the expression patterns.
 
 
 ```{r echo=TRUE, eval=TRUE}
-source('ntmfit.R')
+source('../R/ntmfit.R')
 ```
 
-We apply the NTM fit on a toy example (same example as in *pmd_wavelets_2.html*).
+## Toy example (mixture of sinusoid data matrix)
+
+We simulate two sets of  sinusoidal expression for $100$ genes over $256$ time points in order and then mix them with a mixing proportion of $0.5$. For the first set of sinusoidal expression, the amplitudes for all the genes are $10$, the phases for the first $50$ genes are $2$ and that of the last $50$ genes being $5$. The error variation besides the signal for each genes is
+taken to be generated from $\chi^2_{4}$ distribution. For the second set of sinusoidal expression, the amplitudes for all the genes are $5$, the phases for the first $50$ genes are $3$ and that of the last $50$ genes being $2$. The error variation besides the signal for each genes is taken to be generated from $\chi^2_{1}$ distribution.
+
 
 ```{r echo=TRUE, eval=TRUE}
 library(PMA)
@@ -46,6 +54,8 @@ plot(cycle_data[(2+G/2),], type="l")
 
 ```
 
+## Applying Normal Topic Model 
+
 Next, we apply the *NTMfit()* function on the this data.
 
 ```{r echo=TRUE, eval=TRUE}
@@ -64,6 +74,7 @@ plot(out1$alpha_out[2,], type="l")
 
 ```
 
+## Wavelet Transformation of data matrix
 
 ```{r echo=TRUE, eval=TRUE}
 
@@ -73,6 +84,8 @@ wave_data <- t(apply(cycle_data, 1, function(x)
                                       return(out$D)
                                   }));
 ```
+
+## Applying Normal Topic Model on wavelet transformed data
 
 Now apply *NTMfit()* function on the this wavelet-transformed data.
 
@@ -90,6 +103,8 @@ title(main=paste("Structure Plot topic proportions,k=",K))
 
 ```
 
+## Recreating back factors from wavelet transform
+
 Reforming the cluster patterns by reverse transforming the *alpha* output from the *NTMfit()* model fit above.
 
 ```{r echo=TRUE, eval=TRUE}
@@ -100,4 +115,7 @@ plot(idwt[,2], type="l")
 
 ```
 
+## Conclusions
+
 The NTM (Normal Topic model) does a pretty decent job at clustering the two groups of sinusoidal wave patterns both without and with wavelet transforms.
+
