@@ -11,7 +11,7 @@ output:
 
 In this script, we use the wavelet technique for a mixture of sinusoidal time series function and then perform factor analysis using the **PMA** package by Witten and Tibshirani (PMD - penalized matrix decomposition approach). 
 
-## Toy example (sinusoidal data matrix)
+## Toy example (mixture of sinusoidal data matrix)
 
 We simulate two sets of  sinusoidal expression for $100$ genes over $256$ time points in order and then mix them with a mixing proportion of $0.5$. For the first set of sinusoidal expression, the amplitudes for all the genes are $10$, the phases for the first $50$ genes are $2$ and that of the last $50$ genes being $5$. The error variation besides the signal for each genes is
 taken to be generated from $\chi^2_{4}$ distribution. For the second set of sinusoidal expression, the amplitudes for all the genes are $5$, the phases for the first $50$ genes are $3$ and that of the last $50$ genes being $2$. The error variation besides the signal for each genes is taken to be generated from $\chi^2_{1}$ distribution.
