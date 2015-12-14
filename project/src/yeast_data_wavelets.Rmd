@@ -2,19 +2,21 @@
 title: 'Wavelets: applying SFA and NTM on yeast (elu) data'
 author: "Kushal K Dey"
 date: "December 13, 2015"
-output: html_document
+output: 
+  html_document:
+    toc: true
 ---
 
+## Background
+
 We consider the synchronized yeast cell expression across time in Botstein [paper](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC25624/). 
-The data was collected from [Yeast Protein Database](http://quest7.proteome.com/YPDhome.html). 
+The data was collected from [Yeast Protein Database](http://quest7.proteome.com/YPDhome.html). We focus here only on the **elu** data, which showed bumpy patterns in **cellcycle** applications. See [here](http://jhsiao999.github.io/singleCell-method/project/analysis/yeast_cellcycleR.html). We apply the penalized matrix decomposition (PMD) and the Normal Topic Model (NTM) with and without wavelet transformation on the elu data.
 
-## elu Data analysis
 
-### Data exploration
+## Data pre-processing
 
 ```{r echo=TRUE, eval=TRUE}
-setwd("/Users/kushal/Documents/singleCell-method/project/analysis/")
-data <- read.table("../data/Botstein_data/botstein_cdc.txt", sep="\t", header=TRUE, fill=TRUE);
+data <- read.table("../external_data/Botstein_data/botstein_cdc.txt", sep="\t", header=TRUE, fill=TRUE);
 cdc_data <- data[,grep("elu",colnames(data))];
 
 fillNAgaps <- function(x, firstBack=FALSE) {
@@ -57,6 +59,7 @@ cycle_data <- cdc_data_mod;
 dim(cycle_data)
 ```
 
+Center and scale the data.
 
 ```{r echo=TRUE, eval=TRUE}
 cycle_data_norm <- apply(cycle_data,1,function(x)  return (x-mean(x))/sd(x))
@@ -78,6 +81,8 @@ padded_data <- t(apply(cycle_data_norm, 2, function(x)
                                              }))
 
 ```
+
+## Applying PMD on the elu data
 
 Now we first apply the *PMD()* function of the **PMA** package.
 
@@ -105,6 +110,8 @@ barplot(t(neg2), col=2:3, add=TRUE)
 
 ```
 
+## Apply Normal Topic model on elu data
+
 Now we apply the NTM model
 
 ```{r echo=TRUE, eval=TRUE}
@@ -116,6 +123,8 @@ barplot(t(out1$omega_out),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=
 plot(out1$alpha_out[1,], type="l")
 plot(out1$alpha_out[2,], type="l")
 ```
+
+## Applying wavelet transformation
 
 We now compute the wavelet transformation of the data matrix.
 
@@ -129,6 +138,8 @@ wave_data <- t(apply(padded_data, 1, function(x)
 
 
 ```
+
+## Applying PMD on wavelet transformed data
 
 We apply factor analysis on the wave-transformed data.
 
@@ -153,17 +164,18 @@ neg2 <- apply(pmd1$u, c(1,2), function(x) return (min(x,0)))
 par(mar=c(12,2,2,1))
 barplot(t(pos2), col=2:3)
 barplot(t(neg2), col=2:3, add=TRUE)
+```
 
+## Recreate factor patterns from wavelet transform
+
+```{r echo=TRUE, eval=TRUE}
 W <- GenW(n=32, filter.number=3, family="DaubExPhase")
 idwt <- W[,-1] %*% pmd1$v;
 plot(idwt[,1], type="l")
 plot(idwt[,2], type="l")
-
-
-
 ```
 
-Next we apply the NTM model
+## Applying Normal Topic Model 
 
 ```{r echo=TRUE, eval=TRUE}
 K <- 2;
@@ -171,11 +183,19 @@ system.time(out2 <- NTMfit(wave_data, K=2));
 
 barplot(t(out2$omega_out),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
 title(main=paste("Structure Plot topic proportions,k=",K))
+```
 
+## Recreate cluster patterns from wavelet transform
+
+```{r echo=TRUE, eval=TRUE}
 W <- GenW(n=32, filter.number=3, family="DaubExPhase")
 idwt <- W[,-1] %*% t(out2$alpha_out);
 plot(idwt[,1], type="l")
 plot(idwt[,2], type="l")
 
 ```
+
+## Conclusions
+
+The factors obtained did show bumpy patterns, but were not sinusoidal looking. Patterns consistent with and without wavelet transform.
 
