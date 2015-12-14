@@ -2,10 +2,19 @@
 title: 'Wavelets: extracting sinusoidal factors'
 author: "Kushal K Dey"
 date: "December 12, 2015"
-output: html_document
+output: 
+  html_document:
+    toc: true
 ---
 
-In this script, we use the wavelet technique for a sinusoidal time series function and then perform factor analysis on the wavelet transforms. We use sparse factor analysis due to PMD method of Witten and Tibshirani. 
+## Background
+
+In this script, we use the wavelet technique for a sinusoidal time series function and then perform factor analysis using the **PMA** package by Witten and Tibshirani (PMD - penalized matrix decomposition approach). 
+
+## Toy example (sinusoidal data matrix)
+
+We simulate the sinusoidal expression for $100$ genes over $256$ time points in order, where the amplitudes for all the genes are $10$, the phases for the first $50$ genes are $2$ and that of the last $50$ genes being $5$. The error variation besides the signal for each genes is
+taken to be generated from $\chi^2_{4}$ distribution. So, there are two groups of genes depending on gene phases (the first $50$ coming from one phase and the last $50$ from another).
 
 ```{r echo=TRUE, eval=TRUE}
 library(PMA)
@@ -17,29 +26,29 @@ amp_genes1 <- rep(10, G);
 phi_genes1 <- rep(c(2,5), each=G/2);
 sigma_genes1 <- rchisq(G, 4);
 cell_times_sim <- sort(sample(seq(0,2*pi, 2*pi/(num_cells-1)), num_cells, replace=FALSE));
-cycle_data <- sim_sinusoidal_cycle(G, amp_genes1, phi_genes1, sigma_genes1, cell_times_sim);
+cycle_data <- t(sim_sinusoidal_cycle(G, amp_genes1, phi_genes1, sigma_genes1, cell_times_sim));
 ```
 
-The sinusoidal patterns for two cases from the tw groups given as follows 
-```{r echo=TRUE, eval=TRUE}
-plot(cycle_data[,2], type="l");
-plot(cycle_data[,(2+G/2)], type="l")
-
-```
-
-
-We generate a toy example of `r G` sinusoidal gene expression patterns across `r num_cells` time points (synchronized for all genes). We save the data in a file.
+The sinusoidal patterns for two cases from the two groups of gene phases given as follows. Ideally these are how the two factors in a factor
+analysis model on this data would look like.
 
 ```{r echo=TRUE, eval=TRUE}
-setwd('/Users/kushal/Documents/Matthew Stephens Project/Non Technical/wavelets/')
-write.table(cycle_data, "cycle_data.txt", col.names = F, row.names = F);
+plot(cycle_data[2,], type="l");
+plot(cycle_data[(2+(G/2)),], type="l")
+
 ```
+
+## Applying PMD on data matrix
 
 Next we apply the decomposition of the data matrix using the *PMD()* function of the **PMA** package. 
 
 ```{r echo=TRUE, eval=TRUE}
 pmd1 <- PMD(cycle_data, type="standard", K=2, niter=50);
+```
 
+We then present the barplots of the $u$ and $v$ matrices obtained from fitting the penalized matrix decomposition.
+
+```{r echo=TRUE, eval=TRUE}
 pos1<- apply(pmd1$v, c(1,2), function(x) return (max(x,0)))
 neg1 <- apply(pmd1$v, c(1,2), function(x) return (min(x,0)))
 
@@ -60,18 +69,20 @@ barplot(t(neg2), col=2:3, add=TRUE)
 ```
 
 
+## Wavelet transform of sinusoidal data matrix
 
-We now first apply wavelet transform on the genes/ columns for the data matrix.
+We now first apply wavelet transform on the genes (rows) for the data matrix.
 
 ```{r echo=TRUE, eval=TRUE}
 
-wave_data <- t(apply(cycle_data, 2, function(x)
+wave_data <- t(apply(cycle_data, 1, function(x)
                                   {
                                       out <- wd(x, filter.number = 3, family = "DaubExPhase")
                                       return(out$D)
                                   }));
 ```
 
+## Applying PMD on wavelet transformed data
 
 Now apply the decomposition of this wavelet transformed data matrix using the *PMD()* function of **PMA** package.
 
@@ -98,6 +109,8 @@ barplot(t(neg2), col=2:3, add=TRUE)
 
 ```
 
+## Recreating back factors from wavelet transform
+
 We now recreate the factors in the actual space by reverse transforming the factors produced from applying sparse factor analysis on the wavelet transformed data matrix.
 
 ```{r echo=TRUE, eval=TRUE}
@@ -108,3 +121,6 @@ plot(idwt[,2], type="l")
 
 ```
 
+## Conclusion
+
+The factor analysis on wavelet transformed data does a much better job at recreating the original factor sinusoidal patterns, compared to the factor analysis model without wavelet transform. 
