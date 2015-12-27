@@ -1,0 +1,206 @@
+---
+title: 'Variable selection ordered samples cellcycleR: Ex 2'
+author: "Kushal K Dey"
+date: "December 27, 2015"
+output: html_document
+---
+---
+title: 'Variable selection ordered samples cellcycleR: (K=2)'
+author: "Kushal K Dey"
+date: "December 26, 2015"
+output: 
+  html_document:
+    toc: true
+---
+
+## Overview
+
+Variable selection in topic models or in cellcyleR methods is an important matter of consideration. In this script, we shall consider an example simulation model for cells on the cell cycle or ordered samples (by time) and we apply variable selecion using sparse factor analysis. We use the *PMD()* function of the R package **PMA**  for factor analysis and then use the factor loadings matrix to do the variable selection.
+
+## Simulation design
+
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+library(cellcycleR)
+library(wavethresh)
+G <- 100;
+num_cells <- 256;
+amp_genes1 <- c(rep(8, G/4), rep(6, G/4), rep(0,G/4), rep(0.5,G/4));
+phi_genes1 <- rep(c(2,5), each=G/2);
+sigma_genes1 <- rchisq(G, 2);
+cell_times_sim <- sort(sample(seq(0,2*pi, 2*pi/(num_cells-1)), num_cells, replace=FALSE));
+cycle_data <- t(sim_sinusoidal_cycle(G, amp_genes1, phi_genes1, sigma_genes1, cell_times_sim));
+```
+
+By the way we have defined the set up, the genes from number $51$ to $75$ are unimportant as they have amplitudes $0$, meaning they only contribute to noise. Ideally, we would like to eliminate the non-informative genes before applying the topic model/cellcycleR on such a data for more accurate representation, removing unwanted noise and also faster implementation.
+
+The sinusoidal patterns for two cases from the two groups of gene phases given as follows. Ideally these are how the two factors in a factor
+analysis model on this data would look like.
+
+The cyclical pattern for $2$ nd gene
+
+```{r echo=TRUE, eval=TRUE}
+plot(cycle_data[2,], type="l");
+```
+
+The pattern for $52$ nd gene (which has amplitude 0 and hence is all noise)
+
+```{r eho=TRUE, eval=TRUE}
+plot(cycle_data[(2+(G/2)),], type="l")
+```
+
+## Wavelet transform of sinusoidal data matrix
+
+We now first apply wavelet transform on the genes (rows) for the data matrix.
+
+```{r echo=TRUE, eval=TRUE}
+
+wave_data <- t(apply(cycle_data, 1, function(x)
+                                  {
+                                      out <- wd(x, filter.number = 3, family = "DaubExPhase")
+                                      return(out$D)
+                                  }));
+```
+
+
+## Factor analysis on wavelet transformed data
+
+We perform factor analysis on the genes.
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+pmd1 <- PMD(wave_data, type="standard", K=2, niter=50);
+```
+
+### Non shrunk factor loadings
+
+We plot the barplot of the factor loadings, colors representing the two factors.
+
+```{r echo=TRUE, eval=TRUE}
+pos_u <- apply(pmd1$u, c(1,2), function(x) return (max(x,0)))
+neg_u <- apply(pmd1$u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos_u), col=2:3)
+barplot(t(neg_u), col=2:3, add=TRUE)
+
+```
+
+### Shrinking factor loadings
+
+From the barplot, it is clear that the first two and the last two genes have very high loadings and are informative about clustering. So, these genes need to be kept in the clustering. However, the other genes which are non-informative still have small loadings. We use shrinkage to shrink these small values to 0.
+
+The sum of squared values of the columns of $u$ matrix from *PMD()* fit is 1 by definition. Check here 
+
+```{r echo=TRUE, eval=TRUE}
+apply(pmd1$u,2,function(x) return(sqrt(sum(x^2))))
+```
+
+We assume that all the genes contribute equally to this variance or standard deviation of $1$ in the $u$ matrix and we assume the variance to be $1/G$, whhere $G$ is the total number of genes.
+
+```{r echo=TRUE, eval=TRUE}
+library(ashr)
+shrunk_u <- suppressWarnings(apply(pmd1$u, 2, function(x) return(ash(x,sqrt(1/length(x)))$PosteriorMean)));
+pos_shrunk_u <- apply(shrunk_u, c(1,2), function(x) return (max(x,0)))
+neg_shrunk_u <- apply(shrunk_u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos_shrunk_u), col=2:3)
+barplot(t(neg_shrunk_u), col=2:3, add=TRUE)
+
+```
+
+### Variable selection
+
+The genes chosen after variable selection
+
+```{r echo=TRUE, eval=TRUE}
+ss_loadings <- apply(shrunk_u,1,function(x) return(sqrt(sum(x^2))))
+which(ss_loadings > 1e-06)
+```
+
+Note that for this threshold, we mostly get all the relevant genes. However for a stronger threshold, we do miss out on many genes, as is depicted next.
+
+```{r echo=TRUE, eval=TRUE}
+which(ss_loadings > 1e-04)
+```
+
+```{r echo=TRUE, eval=TRUE}
+which(ss_loadings > 1e-03)
+```
+
+## Factor analysis without wavelet transform
+
+We do the same analysis, but without the wavelet transform.
+
+```{r echo=TRUE, eval=TRUE}
+library(PMA)
+pmd1 <- PMD(cycle_data, type="standard", K=2, niter=50);
+```
+
+### Non shrunk loadings
+
+We plot the barplot of the factor loadings, colors representing the two factors.
+
+```{r echo=TRUE, eval=TRUE}
+pos_u <- apply(pmd1$u, c(1,2), function(x) return (max(x,0)))
+neg_u <- apply(pmd1$u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos_u), col=2:3)
+barplot(t(neg_u), col=2:3, add=TRUE)
+
+```
+
+### Shrinking factor loadings
+
+From the barplot, it is clear that the first two and the last two genes have very high loadings and are informative about clustering. So, these genes need to be kept in the clustering. However, the other genes which are non-informative still have small loadings. We use shrinkage to shrink these small values to 0.
+
+The sum of squared values of the columns of $u$ matrix from *PMD()* fit is 1 by definition. Check here 
+
+```{r echo=TRUE, eval=TRUE}
+apply(pmd1$u,2,function(x) return(sqrt(sum(x^2))))
+```
+
+We assume that all the genes contribute equally to this variance or standard deviation of $1$ in the $u$ matrix and we assume the variance to be $1/G$, whhere $G$ is the total number of genes.
+
+```{r echo=TRUE, eval=TRUE}
+library(ashr)
+shrunk_u <- suppressWarnings(apply(pmd1$u, 2, function(x) return(ash(x,sqrt(1/length(x)))$PosteriorMean)));
+pos_shrunk_u <- apply(shrunk_u, c(1,2), function(x) return (max(x,0)))
+neg_shrunk_u <- apply(shrunk_u, c(1,2), function(x) return (min(x,0)))
+
+par(mar=c(12,2,2,1))
+barplot(t(pos_shrunk_u), col=2:3)
+barplot(t(neg_shrunk_u), col=2:3, add=TRUE)
+
+```
+
+### Variable selection
+
+The genes chosen after variable selection
+
+```{r echo=TRUE, eval=TRUE}
+ss_loadings <- apply(shrunk_u,1,function(x) return(sqrt(sum(x^2))))
+which(ss_loadings > 1e-06)
+```
+
+Note that for this threshold, we mostly get all the relevant genes. However for a stronger threshold, we do miss out on many genes, as is depicted next.
+
+```{r echo=TRUE, eval=TRUE}
+which(ss_loadings > 1e-04)
+```
+
+```{r echo=TRUE, eval=TRUE}
+which(ss_loadings > 1e-03)
+```
+
+
+## Conclusion
+
+Note that for the last set of genes, the amplitude variation was smaller than noise variation, and the method did not manage to catch these genes. This would be a matter of interest, how to get around this issue.
+
+
+
+
