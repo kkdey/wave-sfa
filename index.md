@@ -34,4 +34,6 @@ tagline:
 * Variable selection (sorted cells cellcycleR)
     * [Variable selection sorted cells in cell cycle, Example1](project/src/varselect_cellcycleR_ex1.html)
     * [Variable selection sorted cells in cell cycle, Example2](project/src/varselect_cellcycleR_ex2.html)
+* Real Data analysis
+    * [Alex Bird Data: variable selection](project/src/alex_data_varselect.html)
 
