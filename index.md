@@ -9,7 +9,7 @@ tagline:
 
 ---
 
-### Wavelet methods for factor analsyis and clustering  <a id = 'wave-sfa'></a>
+### Wavelet methods for factor analysis and clustering  <a id = 'wave-sfa'></a>
 
 * Wavelet methods (Introduction)
     * [Notes on wavelets- Part 1](project/src/wavelets_intro.html)
