@@ -37,3 +37,7 @@ tagline:
 * Real Data analysis
     * [Alex Bird Data: variable selection](project/src/alex_data_varselect.html)
 
+### Topic model with ordered features <a id = 'wave-sfa3'></a>
+
+* [The Model overview](project/src/topicmodel_ordered_features.pdf)
+
