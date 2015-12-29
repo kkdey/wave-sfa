@@ -145,6 +145,18 @@ $$ \theta^{(S)}_{kl} = \frac{\mu^{(S)}_{kl}} { \sum_{r=1}^{G} \mu^{(S)}_{kr}} $$
 
 These are the $\theta$ update of the step. The $\theta^{(S)}$ values updated this way can then be used to update the $\omega$ parameters, which incidentally depend only on the leaf node parameters $\theta^{(S)}$. The approach to estimating $\omega$ is similar to the one used by  Matt Taddy, using active set strategy. 
 
+## Questions 
+
+- Choice of hyperparameters. This question has not been addressed much in the multiscale topic tomography paper.
+
+- Not sure if the distance between the ordered points should play a part in the model. Three features could be ordered next to each other but the first two may be pretty close (say bodymass 5 and 6 in birds data) and the third one is far apart (say bodymass 100 in birds data).
+
+- What is the interpretation of the topics under this set up and how it differs from the original topic model. 
+
+- Can we compare this model with the original model likelihoodwise and how to test the hypothesis whether the ordering matters for the clustering or not.
+
+
+
 
 
 
