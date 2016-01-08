@@ -1,0 +1,178 @@
+---
+title: 'Alex Bird data: bodymass binning'
+author: "Kushal K Dey"
+date: "January 8, 2016"
+output: 
+  html_document:
+    toc: true
+---
+
+## Background
+
+We perform a topic model with binning the birds by bodymass and observing how the cluster proportions change with length of the bins or the number of bins chosen. Also, we observe how the cluster distributions themselves look like and if they are dependent on bodymass or not. 
+
+## Data preprocessing
+
+We first load the data
+
+```{r echo=TRUE, eval=TRUE}
+library(maptpx)
+setwd('/Users/kushal/Documents/wave-sfa/project/src/')
+data=read.csv("../external_data/Himalayan_grid_matrix.csv",header=TRUE);
+
+counts=as.matrix(data[,-1]);
+
+rownames(counts)=data[,1];
+
+new_data1 <- data.frame(read.csv('../external_data/MohanGrids.csv'));
+new_data2 <- data.frame(read.csv('../external_data/MohanGrids2.csv'));
+
+bird_species <- union(as.vector(colnames(counts)), union(as.vector(new_data1[,1]), as.vector(new_data2[,1])));
+
+new_data <- matrix(0,dim(counts)[1]+3,length(bird_species));
+new_data[1,match(new_data1[,1],bird_species)]=new_data1[,2];
+new_data[2,match(new_data1[,1],bird_species)]=new_data1[,3];
+new_data[3,match(new_data2[,1],bird_species)]=new_data2[,2];
+new_data[4:(dim(counts)[1]+3),match(colnames(counts),bird_species)]=counts;
+
+new_counts <- as.matrix(new_data);
+
+rownames(new_counts) <- c(c("U1","U2","MA1"),rownames(counts));
+colnames(new_counts) <- bird_species;
+new_counts <- new_counts[-(1:3),];
+
+```
+
+Next we load the required metadata for forest spots.
+
+
+```{r echo=TRUE, eval=TRUE}
+metadata=read.csv("../external_data/Himalayan_grid_metadata.csv",header=TRUE);
+elevation_metadata=metadata$Elevation[match(rownames(new_counts),metadata[,1])];
+east_west_dir = metadata$WorE[match(rownames(new_counts),metadata[,1])];
+
+```
+
+Now we load the bodymass data for the bird species. 
+
+```{r echo=TRUE, eval=TRUE}
+bodymass_data <- read.csv('../external_data/massKushal.csv');
+
+bodymass_val <- bodymass_data[,2];
+bodymass_birds <- bodymass_data[,1];
+
+bodymass_matched <- bodymass_data[match(colnames(new_counts),bodymass_birds),2];
+summary(bodymass_matched)
+
+```
+
+Order the bird species data based on bodymass 
+
+```{r echo=TRUE, eval=TRUE}
+ordered_counts <- new_counts[,order(bodymass_matched, decreasing = FALSE)];
+```
+
+Before we bin the data, we perform topic model without binning and check if we get the clustering by elevation for $K=2$ or not. 
+
+## Cluster analysis without binning
+
+```{r echo=TRUE, eval=TRUE}
+K=2
+out_tot <- topics(ordered_counts, K=2)
+barplot(t(out_tot$omega[order(elevation_metadata),]),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+title(main=paste("Structure Plot topic proportions,k=",K))
+combo_patch_dir = paste0(elevation_metadata,"_",east_west_dir);
+combo_patch_dir_ordered = combo_patch_dir[order(elevation_metadata)];
+
+match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+  
+axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+abline(v=match_labs[2:length(match_labs)]);
+
+
+```
+
+Now we perform the binning of the bodymasses. We use a binning function that takesthe number of bins as an argument and fits the topic model and provides the Strucure plot.
+
+## Binning the bird species 
+
+```{r echo=TRUE, eval=TRUE}
+
+binning_topics <- function(n_breaks){
+  bodymass_ordered <- bodymass_matched[order(bodymass_matched, decreasing = FALSE)];
+  histo <- hist(bodymass_ordered, breaks=n_breaks)
+  histo$breaks
+
+  binned_data = NULL
+
+  for(l in 1:length(histo$breaks))
+  {
+    if(l==1){
+      indices <- which(bodymass_ordered < histo$breaks[l])
+      if(length(indices)==0){ out <- rep(0,dim(ordered_counts)[1])}
+      if(length(indices)==1){ out <- ordered_counts[,indices]}
+      if(length(indices)> 1){ out <- rowSums(ordered_counts[,indices])}
+    }
+    if(l > 1){
+      indices <- which(bodymass_ordered < histo$breaks[l] & bodymass_ordered > histo$breaks[(l-1)])
+      if(length(indices)==0){ out <- rep(0,dim(ordered_counts)[1])}
+      if(length(indices)==1){ out <- ordered_counts[,indices]}
+      if(length(indices)> 1){ out <- rowSums(ordered_counts[,indices])}
+    }
+    binned_data <- cbind(binned_data, out);
+  }
+
+  out1 <- topics(binned_data, K=2)
+
+  barplot(t(out1$omega[order(elevation_metadata),]),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),
+          cex.axis=1.5,cex.main=1.4)
+  title(main=paste("Structure Plot,k=",K,"bins=",n_breaks))
+  combo_patch_dir = paste0(elevation_metadata,"_",east_west_dir);
+  combo_patch_dir_ordered = combo_patch_dir[order(elevation_metadata)];
+
+  match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+  match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+  match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+  labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+  
+  axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+  abline(v=match_labs[2:length(match_labs)]);
+  
+  par(mfrow=c(2,1))
+  barplot(t(as.vector(out1$theta[,1])), col="red", main="Cluster 1", xlab="bird species")
+  barplot(t(as.vector(out1$theta[,2])), col="green", main="Cluster 2", xlab="bird species")
+  
+}
+
+
+```
+
+We apply the binning strategy for varying number of bins and we present the Structure plot for cluster proportions and the cluster patterns 
+
+## Cluster analysis post-binning
+
+### Number of bins: 10
+```{r echo=TRUE, eval=TRUE}
+binning_topics(10)
+```
+
+### Number of bins: 20
+```{r echo=TRUE, eval=TRUE}
+binning_topics(20)
+```
+
+### Number of bins: 40
+```{r echo=TRUE, eval=TRUE}
+binning_topics(40)
+```
+
+### Number of bins: 500
+```{r echo=TRUE, eval=TRUE}
+binning_topics(500)
+```
+
+
+
