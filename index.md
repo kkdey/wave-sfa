@@ -36,8 +36,11 @@ tagline:
     * [Variable selection sorted cells in cell cycle, Example2](project/src/varselect_cellcycleR_ex2.html)
 * Real Data analysis
     * [Alex Bird Data: variable selection](project/src/alex_data_varselect.html)
+    
 
 ### Topic model with ordered features <a id = 'wave-sfa3'></a>
 
 * [The Model overview](project/src/topicmodel_ordered_features.pdf)
+* [ Alex Bird Data: binning using log bodymass](project/src/alex_data_binned_topics.html)
+
 
