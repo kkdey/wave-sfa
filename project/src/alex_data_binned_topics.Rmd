@@ -1,5 +1,5 @@
 ---
-title: 'Alex Bird data: bodymass binning'
+title: 'Alex Bird data: log bodymass binning'
 author: "Kushal K Dey"
 date: "January 8, 2016"
 output: 
@@ -95,7 +95,7 @@ abline(v=match_labs[2:length(match_labs)]);
 
 ```
 
-Now we perform the binning of the bodymasses. We use a binning function that takesthe number of bins as an argument and fits the topic model and provides the Strucure plot.
+Now we perform the binning of the log of bodymasses. We use a binning function that takesthe number of bins as an argument and fits the topic model and provides the Strucure plot.
 
 ## Binning the bird species 
 
@@ -103,21 +103,23 @@ Now we perform the binning of the bodymasses. We use a binning function that tak
 
 binning_topics <- function(n_breaks){
   bodymass_ordered <- bodymass_matched[order(bodymass_matched, decreasing = FALSE)];
-  histo <- hist(bodymass_ordered, breaks=n_breaks)
-  histo$breaks
+  histo <- hist(log(bodymass_ordered+1), breaks=n_breaks)
+  #histo$breaks
 
   binned_data = NULL
+  histo$breaks <- histo$breaks[-1];
+
 
   for(l in 1:length(histo$breaks))
   {
     if(l==1){
-      indices <- which(bodymass_ordered < histo$breaks[l])
+      indices <- which(log(bodymass_ordered+1) < histo$breaks[l])
       if(length(indices)==0){ out <- rep(0,dim(ordered_counts)[1])}
       if(length(indices)==1){ out <- ordered_counts[,indices]}
       if(length(indices)> 1){ out <- rowSums(ordered_counts[,indices])}
     }
     if(l > 1){
-      indices <- which(bodymass_ordered < histo$breaks[l] & bodymass_ordered > histo$breaks[(l-1)])
+      indices <- which(log(bodymass_ordered+1) < histo$breaks[l] & log(bodymass_ordered+1) > histo$breaks[(l-1)])
       if(length(indices)==0){ out <- rep(0,dim(ordered_counts)[1])}
       if(length(indices)==1){ out <- ordered_counts[,indices]}
       if(length(indices)> 1){ out <- rowSums(ordered_counts[,indices])}
@@ -171,7 +173,7 @@ binning_topics(40)
 
 ### Number of bins: 500
 ```{r echo=TRUE, eval=TRUE}
-binning_topics(500)
+binning_topics(100)
 ```
 
 
