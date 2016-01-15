@@ -65,11 +65,11 @@ Suppose we are at a particular iterative step of our model where we have plausib
 
 From Eqn 8 of Matt Taddy's [paper](http://arxiv.org/pdf/1109.4518v3.pdf)), we can write
 
-$$ z_{nkg} = c_{ng} \frac{\omega_{nk} \theta_{kg}}{\sum_{h=1}^{K} \omega_{nh} \theta_{hg}} $$
+$$ \mathbb{E} \left (z_{nkg} \right ) =  \mathbb{E} \left (c_{ng} \frac{\omega_{nk} \theta_{kg}}{\sum_{h=1}^{K} \omega_{nh} \theta_{hg}} \right )$$
 
 So, 
 
-$$ z_{kg} = \sum_{n=1}^{N} c_{ng} \frac{\omega_{nk} \theta_{kg}}{\sum_{h=1}^{K} \omega_{nh} \theta_{hg}} $$
+$$ \mathbb{E} \left (z_{kg} \right) = \mathbb{E} \left (\sum_{n=1}^{N} c_{ng} \frac{\omega_{nk} \theta_{kg}}{\sum_{h=1}^{K} \omega_{nh} \theta_{hg}} \right) $$
 
 Note that $z_{kg}$ and $z_{k^{'}g}$ for $k \neq k^{'}$ are independent. Then the multiscale framework for $\theta$ can be translated to multiscale framework for $z$ as well. Under this framework, we have 
 
@@ -104,12 +104,14 @@ $$ \beta^{(s)}_{k(l)} \sim Beta(. | \delta_{\beta}, \delta_{\beta}) $$
 
 The prior distribution is therefore given by 
 
-$$ P(\mu | \delta) = \prod_{k=1}^{K} Gamma( \mu^{(0)}_{k0} | \nu_{\mu}, \delta_{\mu}) \times \prod_{k=1}^{K} \prod_{s=0}^{S-1} \prod_{l=0}^{2^{s}-1} Beta(\beta^{(s)}_{k(l)} | \delta_{\beta}, \delta_{\beta}) $$
+$$ \pi(\mu | \delta) = \prod_{k=1}^{K} Gamma( \mu^{(0)}_{k0} | \nu_{\mu}, \delta_{\mu}) \times \prod_{k=1}^{K} \prod_{s=0}^{S-1} \prod_{l=0}^{2^{s}-1} Beta(\beta^{(s)}_{k(l)} | \delta_{\beta}, \delta_{\beta}) $$
+
+$$ \pi(\omega | \alpha) \sim Dir_{K} (\alpha_1, \alpha_2, \cdots, \alpha_K) $$
 
 #### Loglikelihood given wavelet parameters
 
 
-The loglikelihood of $\mu$ is given as follows 
+The full model loglikelihood of $\mu$ assuming we know the hidden variables $z$ is given as follows 
 
 \begin{align}
 L(\mu)  & = \sum_{l=0}^{2^{S}-1} \sum_{k=1}^{K} log Poi (z^{(S)}_{k(l)} | \mu^{(S)}_{kl}) \\ 
@@ -119,15 +121,34 @@ L(\mu)  & = \sum_{l=0}^{2^{S}-1} \sum_{k=1}^{K} log Poi (z^{(S)}_{k(l)} | \mu^{(
 
 The $z$ values estimated may not always be integers but we assume that they are approximated to the nearest integer. This is the same policy also adopted by the authors in the multiscale Topic Tomography [paper](http://www.cs.cmu.edu/~wcohen/postscript/topic-tomography-submitted.pdf). 
 
-#### MAP estimates of wavelet parameters
+#### EM algorithm 
 
+Assume after the previous step of iteration, we have obtained iterates $\beta_{old}$, $\mu^{(0)}_{old}$ and $\omega_{old}$.
+
+We define 
+ 
+$$ \mathcal{Q} \left ( \beta, \mu^{(0)} | C_{N \times G}, \beta_{old} ,\mu^{(0)}_{old}, \omega_{old} \right ) = \mathbb{E}_{Z | C_{N \times G}, \beta_{old}, \mu^{(0)}_{old}, \omega_{old}} \left ( log L(\beta, \mu^{(0)},  X, Z)  + log (\pi ( \beta, \mu^{(0)} | \delta ) \right ) $$
+
+The first term in the sum expression above does not contain $\omega$ because given that we know $z$, the information on $\omega$ is redundant. We maximize this with respect to $\beta^{(s)}_{kl}$ for each resolution and cluster and $\mu^{(0)}_{k0}$. We obtain the following MAP updates for these parameters. 
+
+#### MAP estimates of wavelet parameters
 
 Given the prior and the log likelihood functions reported above, one can compute th log posterior of the $\mu$ and then one can update the parameters using their MAP estimates.
 
-$$ \beta^{(s)}_{k(l)} = \frac{z^{(s+1)}_{k(2l)} + \delta_{\beta}-1}{z^{(s)}_{k(l)} + 2(\delta_{\beta}-1)} $$
+$$ \beta^{(s)}_{k(l)} = \frac{\mathbb{E} \left ( z^{(s+1)}_{k(2l)} | C, \beta_{old}, \mu^{(0)}_{old}, \omega_{old} \right ) + \delta_{\beta}-1}{\mathbb{E} \left ( z^{(s)}_{k(l)} | C, \beta_{old}, \mu^{(0)}_{old}, \omega_{old} \right ) + 2(\delta_{\beta}-1)} $$
 
-$$ \mu^{(0)}_{k0} = \frac{z^{(0)}_{k(0)} + \nu_{\mu}-1}{\delta_{\mu}+1} $$
+$$ \mu^{(0)}_{k0} = \frac{ \mathbb{E} \left ( z^{(0)}_{k(0)} | C, \beta_{old}, \mu^{(0)}_{old}, \omega_{old} \right ) + \nu_{\mu}-1}{\delta_{\mu}+1} $$
 
+where $C$ reprrsents the counts matrix. Then, the expectations above can be written as 
+
+$$ \mathbb{E} \left ( z^{(S)}_{kl} | C, \beta_{old}, \mu^{(0)}_{old}, \omega_{old} \right ) =  c_{ng} \frac{\omega_{old,nk} \theta_{old,kg}}{\sum_{h=1}^{K} \omega_{old,nh} \theta_{old, hg}} $$
+
+Then use the relation 
+
+$$ \mathbb{E} \left ( z^{(S)}_{kl} | C, \beta_{old}, \mu^{(0)}_{old}, \omega_{old} \right ) = \mathbb{E} \left ( z^{(s+1)}_{k(2l)} | C, \beta_{old}, \mu^{(0)}_{old}, \omega_{old} \right )  + \mathbb{E} \left (  z^{(s+1)}_{k(2l+1)}
+ | C, \beta_{old}, \mu^{(0)}_{old}, \omega_{old} \right ) $$
+ 
+ 
 This multiscale approach is then used coupled with the equations
 
 $$ \mu^{(s)}_{k(2l)} = \beta^{(s-1)}_{k(l)} \mu^{(s-1)}_{k(l)} $$
