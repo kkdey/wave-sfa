@@ -1,0 +1,135 @@
+---
+title: "Topic model with Batch effects"
+author: "Kushal K Dey"
+date: "January 22, 2016"
+output: pdf_document
+---
+
+## Introduction
+
+In RNA-seq experiments, we often encounter samples coming from different batches. The batches may be determined by the amplification procedures used, or the sequencing machine or even the sequencing lane effects. When these batch effects or technical effects are present in the samples, it becomes difficult to often separate out the biological information from the technical information (the latter is often relatively stronger). The topic model or the grade-of membership model has been used to cluster the samples based on their RNA-seq reads counts data (see [paper](https://github.com/stephenslab/count-clustering/blob/master/docs/main.pdf)). In the paper, we have shown that the topic model is sensitive to the presence of batch effects, however we have not been able to present a solution to that problem. We address the issue of how one can tackle batch effects in a topic model type framework. 
+
+We first present the standard topic model framework
+
+## Standard Topic Model
+
+Let $c_{ng}$ be the counts of reads for sample $n$ and gene $g$. Let $c_{n+}$ be the sum of reads for sample $n$, also called the \emph{library size}. 
+
+
+$$ (c_{n1}, c_{n2}, \cdots, c_{nG}) \sim Mult (c_{n+}, p_{n1}, p_{n2}, \cdots, p_{nG})  $$
+
+
+$$ p_{ng} = \sum_{k=1}^{K} \omega_{nk} \theta_{kg} \hspace{1 cm} \sum_{k} \omega_{nk} =1 \hspace{0.5 cm} \forall n \hspace{1 cm} \sum_{g} \theta_{kg} =1 \hspace{0.5 cm} \forall k$$
+
+Here $\omega_{n.}$ represents the topic proportions for $n$ th samples. On the other hand $\theta_{k.}$ represents the probability distribution on the genes for the $k$th topic or cluster. 
+
+## Topic model with Batch effects 
+
+One way batch effects may be incorporated in the above model would be to make the topic distribution for each cluster/ topic a function of the batch the sample is coming from, as well. Then we can write the above model as 
+
+\begin{equation}
+(c_{n1}, c_{n2}, \cdots, c_{nG}) \sim Mult (c_{n+}, p_{n1}, p_{n2}, \cdots, p_{nG})
+\label{lab:mult}
+\end{equation}
+
+\begin{equation}
+p_{ng} = \sum_{k=1}^{K} \omega_{nk} \theta_{b(n):k,g} \hspace{1 cm} \sum_{k} \omega_{nk} =1 \hspace{0.5 cm} \forall n \hspace{1 cm} \sum_{g} \theta_{b(n):k,g} =1 \hspace{0.5 cm} \forall k, \hspace{0.5 cm} b(n) \in \{1,2,\cdots, B \}
+\end{equation}
+
+## Prior Specification
+
+Note that the above the model is analogous to applying topic model separately for each batch. The problem with that approach is that we will not be able to track which cluster is Batch 1 corresponds to that cluster in Batch 2. Also, we expect each cluster distribution to have some common features across different batches despite getting effected by batch effects. In order to tackle this, we make the following assumption.
+
+For each cluster $k$
+
+\begin{equation}
+(\theta_{b:k, 1}, \theta_{b:k, 2}, \cdots, \theta_{b:k, G}) \sim Dir_{G} \left ( \theta_{k1}, \theta_{k2}, \cdots, \theta_{kG} \right ) \hspace{1 cm} b \in \{1,2, \cdots, B \} 
+\label{lab:prior}
+\end{equation}
+
+Which is same as saying that for each batch, we are generating a sample from the cluster with mean $(\theta_{k1}, \theta_{k2}, \cdots, \theta_{kG})$, which represents the cluster $k$. This is analogous to the assumption in the normal linear models with batch effects, 
+
+$$ y_{ng} = \mu_{t(n):b(n),g} = \mu + \tau_{t(n)} + \beta_{b(n)} + e_{ng} $$
+
+where $t(n)$ in the treatment effect and $b(n)$ is the batch effect. We often assume that 
+
+$$ \beta_{b} \sim N(0, \sigma^{2}_{b}) $$
+
+Then 
+
+$$ \mu_{t(n):b(n)} \sim N (\mu + \tau_{n}, \sigma^{2}_{b})  : = N(\mu_{t(n)}, \sigma^{2}_{b}) $$
+
+You can see that the treatment effects under the different batches are then a random sample from a distribution whose mean is the treatment effect without the batch information. Note that $\sigma_b$ term is there in normal models to tune the variance for each effect. We can also put such a scaling parameter in our model Equation \ref{lab:prior}.
+
+Then for each $k$,
+
+$$ (\theta_{b:k, 1}, \theta_{b:k, 2}, \cdots, \theta_{b:k, G}) \sim Dir_{G} \left ( \alpha_{b} \theta_{k1}, \alpha_{b} \theta_{k2}, \cdots, \alpha_{b} \theta_{kG} \right ) \hspace{1 cm} b \in \{1,2, \cdots, B \} $$
+
+However, as of now, I am assuming that $\alpha_b =1$ for all batches and working with the simpler model.
+
+We assume a prior for $\theta_{kg}$.
+
+\begin{equation}
+(\theta_{k1}, \theta_{k2}, \cdots, \theta_{kG}) \sim Dir_{G} \left ( \frac{1}{KG}, \frac{1}{KG}, \cdots, \frac{1}{KG} \right) \hspace{1 cm} \forall k
+\label{lab:prior2}
+\end{equation}
+
+So, essentially we have a hierarchical structure in the $\theta$'s, on combining Equation \ref{lab:prior} and Equation \ref{lab:prior2}. The goal would be to get hold of the $\omega_{nk}$ and $\theta_{kg}$.
+
+We can assume the same prior for $\omega$ as in standard topic model, given by 
+
+$$ (\omega_{n1}, \omega_{n2}, \cdots, \omega_{nK}) \sim  Dir_{K} \left ( \frac{1}{K}, \frac{1}{K}, \cdots, \frac{1}{K} \right) \hspace{1 cm} \forall n$$
+
+## Model estimation
+
+We can assume that
+
+\begin{equation}
+c_{n+} \sim Poi(\lambda_{n}) 
+\label{lab:libsize}
+\end{equation}
+
+Then combining Equation \ref{lab:mult} and Equation \ref{lab:libsize}, we get 
+
+\begin{equation}
+c_{ng} \sim Poi \left ( \lambda_{n} \sum_{k} \omega_{nk} \theta_{kg})
+\end{equation}
+
+Let $z_{nkg}$ represents the number of counts from sample $n$ and from feature $g$ that comes from $k$ th subgroup or cluster. By definition,
+
+$$ \sum_{k=1}^{K} z_{nkg} = c_{ng}  $$
+
+Since the summation of two independent Poisson random variables is also a Poisson variable with mean equal to the sum of the means of the original random variables, we can infer that
+
+$$ z_{nkg} \sim Poi(\lambda_{n}\omega_{nk} \theta_{b(n):k,g}) $$
+
+Let $z_{bkg}$ be the latent variable representing the number of reads coming from the $b$ th batch, $k$ th subgroup/ cluster and gene $g$. 
+
+$$ z_{bkg} \sim Poi(\theta_{b:k,g} \sum_{b(n):b} \omega_{nk})  $$
+
+$$ z_{kg} \sim Poi(\sum_{b} \theta_{b:k,g} \sum_{b(n):b} \omega_{nk}) $$
+
+We can write 
+
+\begin{align}
+E(z_{kg} | \theta_{kg}) & = E \left ( \sum_{b} E \left ( z_{bkg} | \theta_{b:k,g} \right)| \theta_{kg} \right ) \\
+                        & = E \left ( \sum \theta_{b:k,g} \sum_{b(n):b} \omega_{nk} | \theta_{kg} \right) \\
+                        & = E \left ( \theta_{kg} \sum_{b(n):b} \right ) 
+\end{align}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
