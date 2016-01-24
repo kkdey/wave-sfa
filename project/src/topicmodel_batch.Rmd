@@ -10,7 +10,7 @@ output:
 
 ## Introduction
 
-In RNA-seq experiments, we often encounter samples coming from different batches. The batches may be determined by the amplification procedures used, or the sequencing machine or even the sequencing lane effects. When these batch effects or technical effects are present in the samples, it becomes difficult to often separate out the biological information from the technical information (the latter is often relatively stronger). The topic model or the grade-of membership model has been used to cluster the samples based on their RNA-seq reads counts data (see [paper](https://github.com/stephenslab/count-clustering/blob/master/docs/main.pdf)). In the paper, we have shown that the topic model is sensitive to the presence of batch effects, however we have not been able to present a solution to that problem. We address the issue of how one can tackle batch effects in a topic model type framework. 
+In RNA-seq experiments, we often encounter samples coming from different batches. The batches may be determined by the different amplification procedures, sequencing machines or even sequencing lanes used for sequencing. When such effects are present in the samples, it becomes difficult to separate out the biological effects from the technical effects (the latter is often relatively stronger). The topic model or the grade-of membership model has been used to cluster the samples based on their RNA-seq reads counts data (see [paper](https://github.com/stephenslab/count-clustering/blob/master/docs/main.pdf)). In the paper, we have shown that the topic model is sensitive to the presence of batch effects, however we have not been able to present a solution to that problem. Here, we try to address the issue of how one can tackle batch effects in a topic model type framework. 
 
 We first present the standard topic model framework
 
@@ -28,7 +28,7 @@ Here $\omega_{n.}$ represents the topic proportions for $n$ th samples. On the o
 
 ## Topic model with Batch effects 
 
-One way batch effects may be incorporated in the above model would be to make the topic distribution for each cluster/ topic a function of the batch the sample is coming from, as well. Then we can write the above model as 
+One way batch effects may be incorporated in the above model would be to make the topic distribution for each cluster/ topic a function of the batch the sample is coming from. Then we can write the above model as 
 
 \begin{equation}
 (c_{n1}, c_{n2}, \cdots, c_{nG}) \sim Mult (c_{n+}, p_{n1}, p_{n2}, \cdots, p_{nG})
@@ -41,28 +41,28 @@ p_{ng} = \sum_{k=1}^{K} \omega_{nk} \theta_{b(n):k,g} \hspace{1 cm} \sum_{k} \om
 
 ## Prior Specification
 
-Note that the above the model is analogous to applying topic model separately for each batch. The problem with that approach is that we will not be able to track which cluster is Batch 1 corresponds to that cluster in Batch 2. Also, we expect each cluster distribution to have some common features across different batches despite getting effected by batch effects. In order to tackle this, we make the following assumption.
-
-For each cluster $k$
+Note that the above the model is analogous to applying topic model separately for each batch. The problem with that approach is that we will not be able to track which biological cluster in Batch 1 corresponds to which biological cluster in Batch 2. We expect each cluster distribution to have some common features across different batches despite getting effected by batch effects and we want to account for that similarity in patterns. In order to do that, we assume for each cluster $k$
 
 \begin{equation}
 (\theta_{b:k, 1}, \theta_{b:k, 2}, \cdots, \theta_{b:k, G}) \sim Dir_{G} \left ( \theta_{k1}, \theta_{k2}, \cdots, \theta_{kG} \right ) \hspace{1 cm} b \in \{1,2, \cdots, B \} 
 \label{lab:prior}
 \end{equation}
 
-Which is same as saying that for each batch, we are generating a sample from the cluster with mean $(\theta_{k1}, \theta_{k2}, \cdots, \theta_{kG})$, which represents the cluster $k$. This is analogous to the assumption in the normal linear models with batch effects, 
+which is same as saying that for each batch, we are generating a sample from the cluster with mean $(\theta_{k1}, \theta_{k2}, \cdots, \theta_{kG})$, representing the cluster $k$. 
 
-$$ y_{ng} = \mu_{t(n):b(n),g} = \mu + \tau_{t(n)} + \beta_{b(n)} + e_{ng} $$
+The above specification is analogous to the assumptions in normal linear models with batch effects, 
+
+$$ y_{nl} = \mu_{t(n):b(n),l} + e_{nl} = \mu + \tau_{t(n)} + \beta_{b(n)} + e_{nl} \hspace{0.5 cm} e_{nl} \sim N(0,\sigma^2_{e}) $$
 
 where $t(n)$ in the treatment effect and $b(n)$ is the batch effect. We often assume that 
 
-$$ \beta_{b} \sim N(0, \sigma^{2}_{b}) $$
+$$ \beta_{b} \sim N(0, \sigma^{2}_{b}) \hspace{1 cm} b \in \{1,2, \cdots, B \} $$
 
 Then 
 
-$$ \mu_{t(n):b(n)} \sim N (\mu + \tau_{n}, \sigma^{2}_{b})  : = N(\mu_{t(n)}, \sigma^{2}_{b}) $$
+$$ \mu_{t(n):b(n),l} \sim N (\mu + \tau_{t(n)}, \sigma^{2}_{e})  : = N(\mu_{t(n)}, \sigma^{2}_{e}) \hspace{0.5 cm} \forall l$$
 
-You can see that the treatment effects under the different batches are then a random sample from a distribution whose mean is the treatment effect without the batch information. Note that $\sigma_b$ term is there in normal models to tune the variance for each effect. We can also put such a scaling parameter in our model Equation \ref{lab:prior}.
+Notice that the treatment effects under different batches are a random sample from a distribution whose mean is the overall treatment effect. Note that $\sigma_b$ term is the tuning parameter for each batch, that takes into account the inherent variability in a batch. We can also put such a scaling parameter in our model Equation \ref{lab:prior}.
 
 Then for each $k$,
 
@@ -84,7 +84,7 @@ We can assume the same prior for $\omega$ as in standard topic model, given by
 
 $$ (\omega_{n1}, \omega_{n2}, \cdots, \omega_{nK}) \sim  Dir_{K} \left ( \frac{1}{K}, \frac{1}{K}, \cdots, \frac{1}{K} \right) \hspace{1 cm} \forall n$$
 
-## Model estimation
+## Model Specifications
 
 We can assume that
 
@@ -93,13 +93,13 @@ c_{n+} \sim Poi(\lambda_{n})
 \label{lab:libsize}
 \end{equation}
 
-Then combining Equation \ref{lab:mult} and Equation \ref{lab:libsize}, we get 
+Combining Equation \ref{lab:mult} and Equation \ref{lab:libsize}, we get 
 
 \begin{equation}
 c_{ng} \sim Poi \left ( \lambda_{n} \sum_{k} \omega_{nk} \theta_{kg} \right)
 \end{equation}
 
-Let $z_{nkg}$ represents the number of counts from sample $n$ and from feature $g$ that comes from $k$ th subgroup or cluster. By definition,
+Let $z_{nkg}$ represents the number of counts from sample $n$ and gene $g$ that comes from $k$ th subgroup or cluster. By definition,
 
 $$ \sum_{k=1}^{K} z_{nkg} = c_{ng}  $$
 
@@ -122,7 +122,7 @@ E(z_{kg} | \theta_{kg}) & = E \left ( \sum_{b} E \left ( z_{bkg} | \theta_{b:k,g
 \end{align*}
 
 
-Note that under the above set of assumptions, the distribution 
+However despite a simple looking expression for the expectation, the distribution of $z_{bkg}$ or $z_{kg}$ given $\theta_{kg}$ is pretty complicated.
 
 \begin{equation}
 z_{bkg} | \theta_{kg} \sim \prod_{b=1}^{B} \frac{\Gamma (\sum_{g} \theta_{kg})}{\Gamma (\sum_{g} z_{bkg} + \sum_{g} \theta_{kg})} \prod_{g=1}^{G} \frac{\Gamma (z_{bkg} + \theta_{kg})}{\Gamma (\theta_{kg})} \theta^{1/KG}_{kg} 
@@ -136,11 +136,11 @@ z_{kg} = \sum_{b} z_{bkg}
 \label{lab:distr2}
 \end{equation}
 
-This leads to a completed distribution for $z_{kg}$. this density is difficult to handle and will be time expensive to solve for $\theta$ using this density function. Therefore, we resort to a more simplified approach, through EM algorithm to obtain parameter updates at each step. 
+This density is difficult to handle and will be time expensive to solve for $\theta$ using this density function. Therefore, we resort to a more simplified approach, through EM algorithm type mechanism to obtain parameter updates at each step. 
 
-## EM algorithm 
+## Model Estimation
 
-Suppose at the end of update $n$, the current estimates we have are $\omega^{(m)}_{nk}$ and $\theta^{(m)}_{kg}$. We use these iterates to obtain refined estimates $\omega^{(m+1)}_{nk}$ and $\theta^{(m+1)}_{kg}$. This idea is similar to the standard topic model iterative scheme. The only major difference is that there are intermediate parameters containing batch effect information, namely $\theta^{(m+1)}_{b(n):k,g}$. 
+Suppose at the end of update $n$, the current estimates we have are $\omega^{(m)}_{nk}$, $\theta^{(m)}_{b:k,g}$  and $\theta^{(m)}_{kg}$. We use these iterates to obtain refined estimates $\omega^{(m+1)}_{nk}$, $\theta^{(m+1)}_{b:k,g}$  and $\theta^{(m+1)}_{kg}$. We first update the $\theta^{(m+1)}_{b:k,g}$ given the known parameter values using EM algorithm.
 
 \begin{equation}
 \mathcal{L} (z_{bkg} | \theta_{b:k,g}) := Poi \left (\theta_{b:k,g} \sum_{b(n):b} \omega_{nk}\lambda_{n} \right )  
@@ -164,7 +164,7 @@ or
 We define the E-step of the EM algorithm as follows (done separately for each $k$)
 
 \begin{equation}
-\mathcal{Q} \left ( \theta_{b:k,.} | C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)} \right ) = \mathbb{E}_{Z | C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)}} \left ( log \mathcal{L} (z_{bk1}, z_{bk2}, \cdots, z_{bkG} | \theta_{b:k,.})  + log \pi(\theta_{b:k,.} | \theta^{(m)}_{k.} ) \right )
+\mathcal{Q} \left ( \theta_{b:k,.} | C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)} \right ) = \mathbb{E}_{Z | C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)}} \left ( log \; \mathcal{L} (z_{bk1}, z_{bk2}, \cdots, z_{bkG} | \theta_{b:k,.})  + log \; \pi(\theta_{b:k,.} | \theta^{(m)}_{k.} ) \right )
 \label{lab:estep}
 \end{equation}
 
@@ -181,9 +181,9 @@ $$ \mathbb{E} \left ( z_{b:k,g} |  C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^
 
 Once we obtain the estimates $\theta^{(m+1)}_{b:k,g}$, then we would like to update $\theta^{(m+1)}_{kg}$ conditional on $\theta^{(m+1)}_{b:k,g}$ for all $b \in \{1,2, \cdots, B \}$.
 
-One can assume $\theta^{(m+1)}_{b:k,.}$ for all $b$ to be a random sample of size $B$ (same as number of batches) given $\theta_{k.}$ and given the data, we want to estimate the parameters $\theta_{k.}$. However estimating MLE of the Dirichlet parameters is not easy, and requires Newton-Raphson Method (check [paper](http://www.msr-waypoint.com/en-us/um/people/minka/papers/dirichlet/minka-dirichlet.pdf)). One can obtain a MOM (Methods of Moments) type estimator with a tuning parameter $\nu$ as follows.
+One can assume $\theta^{(m+1)}_{b:k,.}$ for all $b$ to be a random sample of size $B$ (same as number of batches) given $\theta_{k.}$ and given the data, we want to estimate the parameters $\theta_{k.}$. However estimating MLE of the Dirichlet parameters is not easy (specially with so many parameters-G is usually pretty big), and requires Newton-Raphson Method (check [paper](http://www.msr-waypoint.com/en-us/um/people/minka/papers/dirichlet/minka-dirichlet.pdf)). One can obtain a MOM (Methods of Moments) type estimator with a tuning parameter $\nu$ as follows.
 
-$$ \theta^{(m+1)}_{kg} = \frac{1}{B+\nu} \sum_{b=1}^{B} \theta^{(m+1)}_{b:k,g}  + \frac{\nu}{B+\nu} \frac{1}{KG} $$
+$$ \theta^{(m+1)}_{kg} = \frac{1}{B+\nu} \sum_{b=1}^{B} \theta^{(m+1)}_{b:k,g}  + \frac{\nu}{B+\nu} \frac{1}{G} $$
 
 instead of the MLE estimator derived from the conditional distribution of $z_{kg}$ given $\theta_{kg}$ as given in Equation \ref{lab:distr1} and Equation \ref{lab:distr2}. However as discussed earlier, the original conditional distribution of $z_{kg} | \theta_{kg}$ seems difficult to handle.
 
