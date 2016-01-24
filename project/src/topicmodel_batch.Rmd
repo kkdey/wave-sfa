@@ -1,8 +1,11 @@
 ---
 title: "Topic model with Batch effects"
+graphics: yes
 author: "Kushal K Dey"
 date: "January 22, 2016"
-output: pdf_document
+output: 
+    pdf_document:
+        keep_tex: true
 ---
 
 ## Introduction
@@ -74,8 +77,9 @@ We assume a prior for $\theta_{kg}$.
 \label{lab:prior2}
 \end{equation}
 
-So, essentially we have a hierarchical structure in the $\theta$'s, on combining Equation \ref{lab:prior} and Equation \ref{lab:prior2}. The goal would be to get hold of the $\omega_{nk}$ and $\theta_{kg}$.
+So, essentially we have a hierarchical structure in the $\theta$'s, on combining Equation \ref{lab:prior} and Equation \ref{lab:prior2}. 
 
+![image](../figs/hierarchy_batch.jpeg)
 We can assume the same prior for $\omega$ as in standard topic model, given by 
 
 $$ (\omega_{n1}, \omega_{n2}, \cdots, \omega_{nK}) \sim  Dir_{K} \left ( \frac{1}{K}, \frac{1}{K}, \cdots, \frac{1}{K} \right) \hspace{1 cm} \forall n$$
@@ -92,7 +96,7 @@ c_{n+} \sim Poi(\lambda_{n})
 Then combining Equation \ref{lab:mult} and Equation \ref{lab:libsize}, we get 
 
 \begin{equation}
-c_{ng} \sim Poi \left ( \lambda_{n} \sum_{k} \omega_{nk} \theta_{kg})
+c_{ng} \sim Poi \left ( \lambda_{n} \sum_{k} \omega_{nk} \theta_{kg} \right)
 \end{equation}
 
 Let $z_{nkg}$ represents the number of counts from sample $n$ and from feature $g$ that comes from $k$ th subgroup or cluster. By definition,
@@ -101,21 +105,102 @@ $$ \sum_{k=1}^{K} z_{nkg} = c_{ng}  $$
 
 Since the summation of two independent Poisson random variables is also a Poisson variable with mean equal to the sum of the means of the original random variables, we can infer that
 
-$$ z_{nkg} \sim Poi(\lambda_{n}\omega_{nk} \theta_{b(n):k,g}) $$
+$$ z_{nkg} \sim Poi \left (\lambda_{n}\omega_{nk} \theta_{b(n):k,g} \right ) $$
 
 Let $z_{bkg}$ be the latent variable representing the number of reads coming from the $b$ th batch, $k$ th subgroup/ cluster and gene $g$. 
 
-$$ z_{bkg} \sim Poi(\theta_{b:k,g} \sum_{b(n):b} \omega_{nk})  $$
+$$ z_{bkg} | \theta_{b:k,g} \sim Poi \left (\theta_{b:k,g} \sum_{b(n):b} \omega_{nk}\lambda_{n} \right )  $$
 
-$$ z_{kg} \sim Poi(\sum_{b} \theta_{b:k,g} \sum_{b(n):b} \omega_{nk}) $$
+$$ z_{kg} | \theta_{b:k,g} \sim Poi \left (\sum_{b} \theta_{b:k,g} \sum_{b(n):b} \omega_{nk}\lambda_{n} \right ) $$
 
 We can write 
 
-\begin{align}
+\begin{align*}
 E(z_{kg} | \theta_{kg}) & = E \left ( \sum_{b} E \left ( z_{bkg} | \theta_{b:k,g} \right)| \theta_{kg} \right ) \\
-                        & = E \left ( \sum \theta_{b:k,g} \sum_{b(n):b} \omega_{nk} | \theta_{kg} \right) \\
-                        & = E \left ( \theta_{kg} \sum_{b(n):b} \right ) 
-\end{align}
+                        & = E \left ( \sum_{b} \theta_{b:k,g} \sum_{b(n):b} \omega_{nk} \lambda_{n} |  \theta_{kg} \right) \\
+                        & = \theta_{kg} \sum_{n} \omega_{nk} \lambda_{n} 
+\end{align*}
+
+
+Note that under the above set of assumptions, the distribution 
+
+\begin{equation}
+z_{bkg} | \theta_{kg} \sim \prod_{b=1}^{B} \frac{\Gamma (\sum_{g} \theta_{kg})}{\Gamma (\sum_{g} z_{bkg} + \sum_{g} \theta_{kg})} \prod_{g=1}^{G} \frac{\Gamma (z_{bkg} + \theta_{kg})}{\Gamma (\theta_{kg})} \theta^{1/KG}_{kg} 
+\label{lab:distr1}
+\end{equation}
+
+and 
+
+\begin{equation}
+z_{kg} = \sum_{b} z_{bkg}
+\label{lab:distr2}
+\end{equation}
+
+This leads to a completed distribution for $z_{kg}$. this density is difficult to handle and will be time expensive to solve for $\theta$ using this density function. Therefore, we resort to a more simplified approach, through EM algorithm to obtain parameter updates at each step. 
+
+## EM algorithm 
+
+Suppose at the end of update $n$, the current estimates we have are $\omega^{(m)}_{nk}$ and $\theta^{(m)}_{kg}$. We use these iterates to obtain refined estimates $\omega^{(m+1)}_{nk}$ and $\theta^{(m+1)}_{kg}$. This idea is similar to the standard topic model iterative scheme. The only major difference is that there are intermediate parameters containing batch effect information, namely $\theta^{(m+1)}_{b(n):k,g}$. 
+
+\begin{equation}
+\mathcal{L} (z_{bkg} | \theta_{b:k,g}) := Poi \left (\theta_{b:k,g} \sum_{b(n):b} \omega_{nk}\lambda_{n} \right )  
+\label{lab:loglik}
+\end{equation}
+
+or 
+
+\begin{equation}
+\mathcal{L} (z_{bk1}, z_{bk2}, \cdots, z_{bkG} | \theta_{b:k,.}) := Mult \left (z_{bk+}, \theta_{b:k,1}, \theta_{b:k,2}, \cdots, \theta_{b:k,G} \right)
+\label{lab:loglik}
+\end{equation}
+
+
+\begin{equation}
+\pi(\theta_{b:k,.} | \theta_{k.} ) \propto \prod_{g=1}^{G} \theta_{b:k,g}^{\theta_{kg}}
+\label{lab:prior}
+\end{equation}
+
+
+We define the E-step of the EM algorithm as follows (done separately for each $k$)
+
+\begin{equation}
+\mathcal{Q} \left ( \theta_{b:k,.} | C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)} \right ) = \mathbb{E}_{Z | C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)}} \left ( log \mathcal{L} (z_{bk1}, z_{bk2}, \cdots, z_{bkG} | \theta_{b:k,.})  + log \pi(\theta_{b:k,.} | \theta^{(m)}_{k.} ) \right )
+\label{lab:estep}
+\end{equation}
+
+We next perform the M-step and we obtain the following solutions for $\theta_{b:k,g}$s.
+
+\begin{equation}
+\theta^{(m+1)}_{b:k,g} : = \frac{\mathbb{E} \left ( z_{b:k,g} |  C_{N \times G}, \theta^{(m)}_{k.} , \omega^{(m)} \right) + \theta^{(m)}_{kg}}{\sum_{g} \mathbb{E} \left ( z_{b:k,g} |  C_{N \times G}, \theta^{(m)}_{k.} , \omega^{(m)} \right) + 1}
+\label{lab:mstep}
+\end{equation}
+
+The expectation over $[ z_{b:k,g} |  C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)} ]$ is given by the following 
+
+$$ \mathbb{E} \left ( z_{b:k,g} |  C_{N \times G}, \theta^{(m)}_{b:k,.}, \theta^{(m)}_{k.} , \omega^{(m)} \right) : = c_{ng} \frac{\omega^{(m)}_{nk} \theta^{(m)}_{b:k,g}}{\sum_{h=1}^{K} \omega^{(m)}_{nh} \theta^{(m)}_{b:h,g}} $$
+
+Once we obtain the estimates $\theta^{(m+1)}_{b:k,g}$, then we would like to update $\theta^{(m+1)}_{kg}$ conditional on $\theta^{(m+1)}_{b:k,g}$ for all $b \in \{1,2, \cdots, B \}$.
+
+One can assume $\theta^{(m+1)}_{b:k,.}$ for all $b$ to be a random sample of size $B$ (same as number of batches) given $\theta_{k.}$ and given the data, we want to estimate the parameters $\theta_{k.}$. However estimating MLE of the Dirichlet parameters is not easy, and requires Newton-Raphson Method (check [paper](http://www.msr-waypoint.com/en-us/um/people/minka/papers/dirichlet/minka-dirichlet.pdf)). One can obtain a MOM (Methods of Moments) type estimator with a tuning parameter $\nu$ as follows.
+
+$$ \theta^{(m+1)}_{kg} = \frac{1}{B+\nu} \sum_{b=1}^{B} \theta^{(m+1)}_{b:k,g}  + \frac{\nu}{B+\nu} \frac{1}{KG} $$
+
+instead of the MLE estimator derived from the conditional distribution of $z_{kg}$ given $\theta_{kg}$ as given in Equation \ref{lab:distr1} and Equation \ref{lab:distr2}. However as discussed earlier, the original conditional distribution of $z_{kg} | \theta_{kg}$ seems difficult to handle.
+
+We fix the batch $b$. Then given $\theta^{(m+1)}_{b:k,g}$, we can estimate $\omega^{(m+1)}_{nk}$ from $\omega^{(m)}_{nk}$ and $\theta^{(m+1)}_{b:k,g}$ using similar convex optimization technique used by Matt Taddy in his [paper](http://arxiv.org/pdf/1109.4518v3.pdf). 
+
+At the end of these steps, we will have $\omega^{(m+1)}_{nk}$, $\theta^{(m+1)}_{b(n):k,g}$ and $\theta^{(m+1)}_{kg}$. We can these use these to update the parameters further and we continue till the log-likelihood converges.
+
+
+
+
+
+
+
+
+
+
+
 
 
 
