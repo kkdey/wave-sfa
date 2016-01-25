@@ -1,0 +1,119 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+    \usepackage{xltxtra,xunicode}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+  \newcommand{\euro}{€}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\ifxetex
+  \usepackage[setpagesize=false, % page size defined by xetex
+              unicode=false, % unicode breaks when used with xetex
+              xetex]{hyperref}
+\else
+  \usepackage[unicode=true]{hyperref}
+\fi
+\hypersetup{breaklinks=true,
+            bookmarks=true,
+            pdfauthor={Kushal K Dey},
+            pdftitle={Topographical Topic Models},
+            colorlinks=true,
+            citecolor=blue,
+            urlcolor=blue,
+            linkcolor=magenta,
+            pdfborder={0 0 0}}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\setcounter{secnumdepth}{0}
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+  \title{Topographical Topic Models}
+  \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+  \author{Kushal K Dey}
+  \preauthor{\centering\large\emph}
+  \postauthor{\par}
+  \predate{\centering\large\emph}
+  \postdate{\par}
+  \date{January 24, 2016}
+
+
+
+\begin{document}
+
+\maketitle
+
+
+\subsection{Introduction}\label{introduction}
+
+In phylogenetic studies, one often encounters assemblage maps that plot
+counts/abundances of different bird species on geographical maps.
+Recently, bird species abundance data was collected from 35 forest spots
+in Eastern and Western Himalayas by Trevor Price's lab. Assemblage map
+was then computed for the bird species in each forest spot depending on
+the presence/absence and/or the relative abundance patterns. The idea
+then is to cluster these assemblage maps using a graded membership model
+and represent each map by a weighted combination of a set of base maps.
+
+\subsection{Model}\label{model}
+
+Let us assume that each map is a grid with \(R\) rows and \(C\) columns.
+Therefore there are \(V = R \times C\) cells/ voxels. We can pool the
+\(V\) pixels/voxels in the assemblage map and view them as as features
+and each pixel/voxel contains a count value representing the abundances.
+Let \(c_{nv}\) be the counts of reads for sample \(n\) and voxel \(v\).
+Let \(c_{n+}\) be the sum of reads for sample \(n\), also called the
+\emph{library size}.
+
+\[ (c_{n1}, c_{n2}, \cdots, c_{nV}) \sim Mult (c_{n+}, p_{n1}, p_{n2}, \cdots, p_{nV})  \]
+
+\[ p_{ng} = \sum_{k=1}^{K} \omega_{nk} \theta_{kg} \hspace{1 cm} \sum_{k} \omega_{nk} =1 \hspace{0.5 cm} \forall n \hspace{1 cm} \sum_{g} \theta_{kg} =1 \hspace{0.5 cm} \forall k\]
+
+Here \(\omega_{n.}\) represents the topic proportions for \(n\) th
+samples. On the other hand \(\theta_{k.}\) represents the probability
+distribution on the genes for the \(k\)th topic or cluster.
+
+\end{document}
