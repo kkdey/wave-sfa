@@ -189,7 +189,7 @@ instead of the MLE estimator derived from the conditional distribution of $z_{kg
 
 We fix the batch $b$. Then given $\theta^{(m+1)}_{b:k,g}$, we can estimate $\omega^{(m+1)}_{nk}$ from $\omega^{(m)}_{nk}$ and $\theta^{(m+1)}_{b:k,g}$ using similar convex optimization technique used by Matt Taddy in his [paper](http://arxiv.org/pdf/1109.4518v3.pdf). 
 
-At the end of these steps, we will have $\omega^{(m+1)}_{nk}$, $\theta^{(m+1)}_{b(n):k,g}$ and $\theta^{(m+1)}_{kg}$. We can these use these to update the parameters further and we continue till the log-likelihood converges.
+At the end of these steps, we will have $\omega^{(m+1)}_{nk}$, $\theta^{(m+1)}_{b(n):k,g}$ and $\theta^{(m+1)}_{kg}$. We can use these to update the parameters further and we continue till the log-likelihood converges.
 
 
 
