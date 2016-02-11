@@ -1,0 +1,237 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+    \usepackage{xltxtra,xunicode}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+  \newcommand{\euro}{€}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\ifxetex
+  \usepackage[setpagesize=false, % page size defined by xetex
+              unicode=false, % unicode breaks when used with xetex
+              xetex]{hyperref}
+\else
+  \usepackage[unicode=true]{hyperref}
+\fi
+\hypersetup{breaklinks=true,
+            bookmarks=true,
+            pdfauthor={Kushal K Dey},
+            pdftitle={Topographical Topic Models},
+            colorlinks=true,
+            citecolor=blue,
+            urlcolor=blue,
+            linkcolor=magenta,
+            pdfborder={0 0 0}}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\setcounter{secnumdepth}{0}
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+  \title{Topographical Topic Models}
+  \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+  \author{Kushal K Dey}
+  \preauthor{\centering\large\emph}
+  \postauthor{\par}
+  \predate{\centering\large\emph}
+  \postdate{\par}
+  \date{January 24, 2016}
+
+
+
+\begin{document}
+
+\maketitle
+
+
+\subsection{Introduction}\label{introduction}
+
+In phylogenetic studies, one often encounters assemblage maps that plot
+counts/abundances of different bird species on geographical maps.
+Recently, bird species abundance data was collected from 35 forest spots
+in Eastern and Western Himalayas by Trevor Price's lab. Assemblage map
+was then computed for the bird species in each forest spot depending on
+the presence/absence and/or the relative abundance patterns. The idea
+then is to cluster these assemblage maps using a graded membership model
+and represent each map by a weighted combination of a set of base maps.
+
+\subsection{Model}\label{model}
+
+Let us assume that each map is a grid with \(R\) rows and \(C\) columns.
+Therefore there are \(V = R \times C\) cells/ voxels. We can pool the
+\(V\) cells/voxels in the assemblage map and view them as as features.
+Each cell/voxel contains a count value representing the total number of
+species present in that cell or the total abundance of all species in
+that cell. Let \(c_{nv}\) be the counts of reads number of bird species/
+total number of birds observed across different species in forest spot
+\(n\) and cell/voxel \(v\). Let \(c_{n+}\) be the sum of the counts
+across the cells for forest spot \(n\) (this would be equal to the total
+counts in the \(n\)th map corresponding to the assemblage map for \(n\)
+th forest spot).
+
+\[ (c_{n1}, c_{n2}, \cdots, c_{nV}) \sim Mult (c_{n+}, p_{n1}, p_{n2}, \cdots, p_{nV})  \]
+
+\[ p_{nv} = \sum_{k=1}^{K} \omega_{nk} f_{kv} \hspace{1 cm} \sum_{k} \omega_{nk} =1 \hspace{0.5 cm} \forall n \hspace{1 cm} \sum_{v} f_{kv} =1 \hspace{0.5 cm} \forall k\]
+
+Here \(\omega_{n.}\) represents the topic proportions for \(n\) th
+forest spot. On the other hand \(f_{k.}\) represents the probability
+distribution or relative intensity across the different cells for the
+\(k\) th cluster or topic. Note that \(f_{k.}\) may also be visualized
+as the base image for the \(k\) th cluster/topic. We assume the priors
+
+\[ (\omega_{n1}, \omega_{n2}, \cdots, \omega_{nK}) \sim  Dir_{K} \left ( \frac{1}{K}, \frac{1}{K}, \cdots, \frac{1}{K} \right) \hspace{1 cm} \forall n\]
+
+\[ (f_{k1}, f_{k2}, \cdots, f_{kV}) \sim Dir_{V} \left ( \alpha_{k1}, \alpha_{k2}, \cdots, \alpha_{kV} \right ) \]
+
+We define
+
+\begin{equation}
+ \alpha_{kv} : = \frac{exp(- \frac{|| r_{v} - \mu_{k} ||^2}{\lambda_{k}})}{\sum_{v} exp(- \frac{|| r_{v} - \mu_{k} ||^2}{\lambda_{k}})} 
+ \label{lab:alpha}
+ \end{equation}
+
+This function is called \emph{Gaussian radial basis function}. Note that
+by definition \(\sum_{v} \alpha_{v}=1\) and this can be viewed as the
+weight we are assigning to each cell or voxel for the \(k\) th base
+map/cluster.
+
+We assume \(\mu_{k}\) and \(\lambda_{k}\) to be hyperparameters in the
+model although in TFA, prior distributions are assumed for these two
+parameters.
+
+\subsection{Model Specifications}\label{model-specifications}
+
+We can assume that
+
+\begin{equation}
+c_{n+} \sim Poi(\lambda_{n}) 
+\label{lab:libsize}
+\end{equation}
+
+Then given the model specifications, we get
+
+\begin{equation}
+c_{nv} \sim Poi \left ( \lambda_{n} \sum_{k} \omega_{nk} f_{kv} \right)
+\end{equation}
+
+Let \(z_{nkv}\) represents the number of counts from forest spot \(n\)
+and cell \(v\) that comes from \(k\) th subgroup or base map. By
+definition,
+
+\[ \sum_{k=1}^{K} z_{nkv} = c_{nv}  \]
+
+Since the summation of two independent Poisson random variables is also
+a Poisson variable with mean equal to the sum of the means of the
+original random variables, we can infer that
+
+\[ z_{nkv} \sim Poi \left (\lambda_{n}\omega_{nk} f_{kv} \right ) \]
+
+We define
+
+\[ z_{kv} := \sum_{n} z_{nkv} \]
+
+\(z_{kv}\) is the number of counts of bird species corresponding to
+\(k\) th base map and \(v\) th cell. We can write
+
+\[ z_{kv} \sim Poi \left ( f_{kv} \sum_{n} \lambda_{n} \omega_{nk} \right) \]
+
+\subsection{Model Estimation}\label{model-estimation}
+
+We start at iteration \(n\) and suppose we have the iterates
+\(\mu^{(m)}_{k}\), \(\lambda^{(m)}_{k}\), \(\omega^{(m)}_{nk}\) and
+\(f^{(m)}_{kv}\). We want to update the parameters for the \(m+1\) th
+step. We update \(f_{kv}\) using the EM algorithm.
+
+\begin{equation}
+\mathcal{Q} \left ( f_{k.} | C_{N \times G}, f^{(m)}, \mu^{(m)}_{k}, \lambda^{(m)}_{k}, \omega^{(m)} \right ) = \mathbb{E}_{Z | C_{N \times G}, f^{(m)}, \mu^{(m)}_{k}, \lambda^{(m)}_{k}, \omega^{(m)}} \left ( log \; \mathcal{L} (z_{k1}, z_{k2}, \cdots, z_{kV} | f_{k.})  + log \; \pi(f_{k.} | \mu^{(m)}_{k.}, \lambda^{(m)}_{k.}) \right )
+\label{lab:estep}
+\end{equation}
+
+where
+
+\begin{equation}
+\pi(f_{k.} | \mu_{k}, \lambda_{k} ) \propto \prod_{v=1}^{V} f_{kv}^{\alpha_{kv}}
+\label{lab:prior}
+\end{equation}
+
+where \(\alpha_{kv}\) is defined as per Equation \ref{lab:alpha}.
+
+and
+
+\begin{equation}
+\mathcal{L} (z_{k1}, z_{k2}, \cdots, z_{kV} | f_{k.}) := Mult \left (z_{k+}, f_{k1}, f_{k2}, \cdots, f_{kV} \right)
+\label{lab:loglik}
+\end{equation}
+
+Using EM algorithm, the parameter updates we get are
+
+\begin{equation}
+f^{(m+1)}_{kv} : = \frac{\mathbb{E} \left ( z_{kv} |  C_{N \times V}, f^{(m)}, \mu^{(m)}_{k}, \lambda^{(m)}_{k}, \omega^{(m)} \right) + \alpha^{(m)}_{kv}}{\sum_{v} \mathbb{E} \left ( z_{kv} |  C_{N \times V}, f^{(m)}, \mu^{(m)}_{k}, \lambda^{(m)}_{k}, \omega^{(m)} \right) + \sum_{v} \alpha^{(m)}_{kv}}
+\label{lab:mstep}
+\end{equation}
+
+where
+
+\[ \mathbb{E} \left ( z_{kv} |  C_{N \times V}, f^{(m)}, \mu^{(m)}_{k}, \lambda^{(m)}_{k}, \omega^{(m)} \right) : = c_{nv} \frac{\omega^{(m)}_{nk} f^{(m)}_{kv}}{\sum_{h=1}^{K} \omega^{(m)}_{nh} f^{(m)}_{hv}} \]
+
+Given that we have the new updates \(f^{(m+1)}_{kv}\), we can obtain new
+estimates for \(\mu^{(m+1)}_{k}\) and \(\lambda^{(m+1)}_{k}\). We define
+
+\[ \mu^{(m+1)}_{k} = \frac{\sum_{v} v f^{(m)}_{kv}}{\sum_{v} f^{(m)}_{kv}} \]
+
+\[ \lambda^{(m+1)}_{k} = \frac{\sum_{v} v^2 f^{(m)}_{kv}}{\sum_{v} f^{(m)}_{kv}} - (\mu^{(m)}_{k})^2 \]
+
+Given the new updates for \(f\), we can update the \(\omega\) parameters
+in the same way as done by Matt Taddy in his
+\href{http://arxiv.org/pdf/1109.4518v3.pdf}{paper} using active set
+strategy and convex optimization.
+
+At the end of these steps, we will have \(\omega^{(m+1)}_{nk}\),
+\(f^{(m+1)}_{kv}\), \(\mu^{(m+1)}_{k}\) and \(\lambda^{(m+1)}_{k}\). We
+can use these to update the parameters further and we continue till the
+log-likelihood converges.
+
+\end{document}

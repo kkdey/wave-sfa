@@ -1,0 +1,226 @@
+---
+title: 'Ordered topic model: Alex Birds data'
+author: "Kushal K Dey"
+date: "February 4, 2016"
+output: 
+  html_document:
+    css: floating-toc.css
+    toc: true
+---
+
+## Overview
+
+We use the `ordtpx` package to perform ordered topic model on the bird abundance data from Trevor Price's lab where the bird species are ordered by increasing bodymass/ beak size. For this version of topic models, we assume a multi-resolution prior on the bird species, ordered by bodymasses. For the first application of ordered topic models, we have left out nugget effects from the analysis. 
+
+```{r echo=TRUE, eval=TRUE, message=FALSE, warning=FALSE}
+library(devtools)
+#install_github('kkdey/ordtpx')
+library(ordtpx)
+library(maptpx)
+```
+
+
+```{r echo=TRUE, eval=TRUE}
+data=read.csv("../external_data/Himalayan_grid_matrix.csv",header=TRUE);
+
+counts=as.matrix(data[,-1]);
+
+rownames(counts)=data[,1];
+
+new_data1 <- data.frame(read.csv('../external_data/MohanGrids.csv'));
+new_data2 <- data.frame(read.csv('../external_data/MohanGrids2.csv'));
+
+bird_species <- union(as.vector(colnames(counts)), union(as.vector(new_data1[,1]), as.vector(new_data2[,1])));
+
+new_data <- matrix(0,dim(counts)[1]+3,length(bird_species));
+new_data[1,match(new_data1[,1],bird_species)]=new_data1[,2];
+new_data[2,match(new_data1[,1],bird_species)]=new_data1[,3];
+new_data[3,match(new_data2[,1],bird_species)]=new_data2[,2];
+new_data[4:(dim(counts)[1]+3),match(colnames(counts),bird_species)]=counts;
+
+new_counts <- as.matrix(new_data);
+
+rownames(new_counts) <- c(c("U1","U2","MA1"),rownames(counts));
+colnames(new_counts) <- bird_species;
+new_counts <- new_counts[-(1:3),];
+
+metadata=read.csv("../external_data/Himalayan_grid_metadata.csv",header=TRUE);
+elevation_metadata=metadata$Elevation[match(rownames(new_counts),metadata[,1])];
+east_west_dir = metadata$WorE[match(rownames(new_counts),metadata[,1])];
+
+bodymass_data <- read.csv('../external_data/massKushal.csv');
+
+bodymass_val <- bodymass_data[,2];
+bodymass_birds <- bodymass_data[,1];
+
+bodymass_matched <- bodymass_data[match(colnames(new_counts),bodymass_birds),2];
+summary(bodymass_matched)
+
+ordered_counts <- new_counts[,order(bodymass_matched, decreasing = FALSE)];
+
+
+```
+
+## Fitting ordered topic model (K=2)
+
+```{r echo=TRUE, eval=TRUE}
+library(ordtpx)
+levels <- ceiling(log(dim(counts)[2])/log(2))+1;
+del_beta <- 2 + rep((2:levels)/levels);
+Topic_clus <- ord_topics(ordered_counts, K=2, del_beta = del_beta, reflect=FALSE, a_mu=2, b_mu=2, ztree_options=2, tol=0.0001)
+
+```
+
+## Structure Plot
+
+```{r echo=TRUE, eval=TRUE}
+K <- 2
+par(mfrow=c(1,1))
+barplot(t(Topic_clus$omega[order(elevation_metadata),]),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4, xlab="elevation")
+title(main=paste("Structure Plot topic proportions,k=",K))
+combo_patch_dir = paste0(round(elevation_metadata));
+combo_patch_dir_ordered = combo_patch_dir[order(elevation_metadata)];
+
+match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+
+axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+abline(v=match_labs[2:length(match_labs)]);
+
+```
+
+## Cluster plots
+
+```{r echo=TRUE, eval=TRUE}
+par(mfrow=c(1,2))
+plot(Topic_clus$theta[,1], type="l")
+plot(Topic_clus$theta[,2], type="l")
+```
+
+## Fitting ordered topic model (K=3)
+
+```{r echo=TRUE, eval=TRUE}
+Topic_clus <- ord_topics(ordered_counts, K=3, del_beta = del_beta, reflect=FALSE, a_mu=2, b_mu=2, ztree_options=2, tol=0.0001)
+docweights <- Topic_clus$omega;
+```
+
+## Structure Plot
+
+```{r echo=TRUE, eval=TRUE}
+par(mfrow=c(1,1))
+east_west_elevation = paste0(metadata$WorE, "_", metadata$Elevation);
+
+index1 <- which(metadata$WorE=="E");
+index2 <- which(metadata$WorE=="W");
+elevation1 <- metadata$Elevation[index1]; elevation2 <- metadata$Elevation[index2];
+index_WE <- c(index1[order(elevation1)], index2[order(elevation2)]);
+
+  K <- 3
+    barplot(t(docweights[index_WE,]),col=2:(K+1),axisnames=F,space=0,border=NA,main=paste("No. of clusters=",3),las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+
+    combo_patch_dir = paste0(east_west_elevation);
+    combo_patch_dir_ordered = combo_patch_dir[index_WE];
+
+  match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+  match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+  match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+  labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+
+  axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+  abline(v=match_labs[2:length(match_labs)]);
+```
+
+## Cluster plots
+
+```{r echo=TRUE, eval=TRUE}
+par(mfrow=c(1,3))
+plot(Topic_clus$theta[,1], type="l")
+plot(Topic_clus$theta[,2], type="l")
+plot(Topic_clus$theta[,3], type="l")
+
+```
+
+## Fitting standard topic model (K=2)
+
+```{r echo=TRUE, eval=TRUE}
+Topic_clus <- maptpx::topics(ordered_counts, K=2, tol=0.0001)
+```
+
+## Structure Plot
+
+```{r echo=TRUE, eval=TRUE}
+K <- 2
+par(mfrow=c(1,1))
+barplot(t(Topic_clus$omega[order(elevation_metadata),]),col=2:(K+1),axisnames=F,space=0,border=NA,main="",las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4, xlab="elevation")
+title(main=paste("Structure Plot topic proportions,k=",K))
+combo_patch_dir = paste0(round(elevation_metadata));
+combo_patch_dir_ordered = combo_patch_dir[order(elevation_metadata)];
+
+match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+
+axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+abline(v=match_labs[2:length(match_labs)]);
+
+```
+
+## Cluster plots
+
+```{r echo=TRUE, eval=TRUE}
+par(mfrow=c(1,2))
+plot(Topic_clus$theta[,1], type="l")
+plot(Topic_clus$theta[,2], type="l")
+```
+
+## Fitting standard topic model (K=3)
+
+```{r echo=TRUE, eval=TRUE}
+Topic_clus <- maptpx::topics(ordered_counts, K=3, tol=0.0001)
+docweights <- Topic_clus$omega;
+```
+
+## Structure Plot
+
+```{r echo=TRUE, eval=TRUE}
+par(mfrow=c(1,1))
+east_west_elevation = paste0(metadata$WorE, "_", metadata$Elevation);
+
+index1 <- which(metadata$WorE=="E");
+index2 <- which(metadata$WorE=="W");
+elevation1 <- metadata$Elevation[index1]; elevation2 <- metadata$Elevation[index2];
+index_WE <- c(index1[order(elevation1)], index2[order(elevation2)]);
+
+  K <- 3
+    barplot(t(docweights[index_WE,]),col=2:(K+1),axisnames=F,space=0,border=NA,main=paste("No. of clusters=",3),las=1,ylim=c(0,1),cex.axis=1.5,cex.main=1.4)
+
+    combo_patch_dir = paste0(east_west_elevation);
+    combo_patch_dir_ordered = combo_patch_dir[index_WE];
+
+  match_labs=match(unique(combo_patch_dir_ordered),combo_patch_dir_ordered);
+  match_labs_suffix=c(match_labs[2:length(unique(combo_patch_dir_ordered))],35);
+  match_labs_prefix=match_labs[1:(length(unique(combo_patch_dir_ordered)))];
+  labs=match_labs_prefix + 0.5*(match_labs_suffix - match_labs_prefix);
+
+  axis(1,at=labs,unique(combo_patch_dir_ordered),las=2);
+  abline(v=match_labs[2:length(match_labs)]);
+```
+
+## Cluster plots
+
+```{r echo=TRUE, eval=TRUE}
+par(mfrow=c(1,3))
+plot(Topic_clus$theta[,1], type="l")
+plot(Topic_clus$theta[,2], type="l")
+plot(Topic_clus$theta[,3], type="l")
+
+```
+
+
+## Conclusions 
+
+We do not see much difference between the analysis done using ordered topic model versus standard topic model set up. This shows that the MRA structure on the bird species to define the prior is probably not so informative compared to the Dirichlet prior as in the standard topic model scenario.
+
