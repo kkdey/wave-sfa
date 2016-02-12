@@ -40,6 +40,7 @@ tagline:
 ### PMD applications (voom driven topic models)
 
 * [non-negative PMD on topic model simulated data](project/src/pmd_topics_voom_1.html)
+* [standard PMD on topic model simulated data](project/src/pmd_topics_voom_2.html)
 * [non-negative PMD on Brain samples GTEX V6 data](project/src/pmd_voom_gtex_brain.html)
 
 
