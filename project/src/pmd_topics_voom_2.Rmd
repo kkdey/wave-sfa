@@ -2,7 +2,10 @@
 title: 'Voom topic models: PMD application 2'
 author: "Kushal K Dey"
 date: "February 12, 2016"
-output: html_document
+output: 
+  html_document:
+    css: floating-toc.css
+    toc: true
 ---
 
 ## Overview
