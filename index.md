@@ -37,6 +37,11 @@ tagline:
 * Real Data analysis
     * [Alex Bird Data: variable selection](project/src/alex_data_varselect.html)
     
+### PMD applications (voom driven topic models)
+
+* [non-negative PMD on topic model simulated data](project/src/pmd_topics_voom_1.html)
+* [non-negative PMD on Brain samples GTEX V6 data](project/src/pmd_voom_gtex_brain.html)
+
 
 ### Topic model with ordered features <a id = 'wave-sfa3'></a>
 
