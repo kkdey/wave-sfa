@@ -50,4 +50,9 @@ tagline:
 * [The Model overview](project/src/topicmodel_ordered_features.pdf)
 * [ Alex Bird Data: binning using log bodymass](project/src/alex_data_binned_topics.html)
 
+### Voom driven topic models
+
+* [Voom+ Topic models](project/src/voom_topic_models.pdf)
+
+
 
