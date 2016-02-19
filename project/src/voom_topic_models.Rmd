@@ -1,0 +1,138 @@
+---
+title: "Voom topic models"
+author: "Kushal K Dey"
+date: "February 18, 2016"
+output: pdf_document
+---
+
+## Introduction
+
+The central concept of `voom` sis to transform the RNA-seq read counts data such that the transformed data follows an approximately normal distribution, with the mean and the variance structure appropriately taken account of to reflect the central tendency and the variation structure at the counts level of the data. 
+
+The idea in this script is to use a normal approximation version of the topic model. The topic model fits a multinomial distribution to the RNA-seq read counts for each sample separately, conditional on the library size. This is similar to assuming a Poisson model for the counts for the unconditional data. The idea then is to convert from the Poisson model to a suitable normal approximation model using the concepts similar to `voom`.
+
+## Aim
+
+A major reasoning behind performing a voom- based topic model are 
+
+\begin{itemize}
+\item \textbf{Overdispersion}: The Poisson model assumes that the mean and the variance are same. This is in general not true, although it is true that higher mean of counts often leads to higher dispersion as well.
+\item \textbf{Sparsity}: We would like to impose sparsity assumptions on the $\theta$ matrix of the topic model, and may be sometimes on both $\omega$ and $\theta$ and compare the results under different sparsity assumptions. Sparsity is easier to implement in normal models compared to the Poisson models. 
+\end{itemize}
+
+## Voom Transformation
+
+We start with the counts $c_{ng}$ for sample $n$ and gene $g$. Then, we can write 
+
+\begin{equation}
+(c_{n1}, c_{n2}, \cdots, c_{nG}) \sim Mult(c_{n+}, p_{n1}, p_{n2}, \cdots, p_{nG}) 
+\end{equation}
+
+where 
+
+\begin{equation}
+p_{ng} = \sum_{k=1}^{K} \omega_{nk} \theta_{kg} \qquad \sum_{k=1}^{K} \omega_{nk}=1 \qquad \forall n \qquad \sum_{g=1}^{G} \theta_{kg}=1 \qquad \forall g 
+\end{equation}
+
+We define the log-cpm as follows 
+
+\begin{equation}
+y_{ng} = log_{2} \left ( \frac{c_{ng}+0.5}{c_{n+}+1} \times 10^{6} \right ) \end{equation}
+
+Let us define 
+
+\begin{equation}
+\lambda_{ng} : = E(c_{ng}) = c_{n+} \sum_{k=1}^{K} \omega_{nk}\theta_{kg} 
+\end{equation}
+
+\begin{equation}
+var(c_{ng}) : = \lambda_{ng} + \phi_{ng} \lambda^{2}_{ng} 
+\end{equation}
+
+where $\phi_{ng}$ is the overdispersion parameter.
+
+We can show that when $\lambda_{ng}$ is large.
+
+\begin{equation}
+var(y_{ng}) = \frac{1}{\lambda_{ng}} + \phi_{ng} 
+\end{equation}
+
+using Taylor series expansion.
+
+## Topic model preprocessing
+
+As a preprocessing step, we first run a topic model on the $c_{ng}$ and obtain a rough estimate of $\omega^{(0)}_{nk}$ and $\theta^{(0)}_{kg}$. Then we can estimate 
+
+\begin{equation}
+\lambda^{(0)}_{ng} = c_{n+} \sum_{k=1}^{K} \omega^{(0)}_{nk} \theta^{(0)}_{kg}
+\end{equation}
+
+
+Let us define 
+
+\begin{equation}
+\mu_{ng} : =  E(y_{ng}) 
+\end{equation}
+
+We can write 
+
+\begin{equation}
+\mu_{ng} = \lambda_{ng} - log_{2} (c_{n+}+1) +6 log_{2}(10) 
+\end{equation}
+
+Next we define 
+
+\begin{equation}
+c_{g} := \bar{y}_{g} + log_{2} (GM(c_{n+})) - 6 log_{2}(10)
+\end{equation}
+
+where $GM(.)$ represents the geometric mean. 
+
+The fitted value from the preprocessing step 
+
+\begin{equation}
+\mu^{(0)}_{ng} = \lambda^{(0)}_{ng} - log_{2} (c_{n+}+1) +6 log_{2}(10) 
+\end{equation}
+
+We define $e_{ng} = y_{ng} - \mu^{(0)}_{ng}$, and then compute the standard deviation for the $g$th gene across all samples $s_{g}$. To obtain a smooth mean-variance trend, a LOESS curve is fitted to square root of standard deviations as a function of mean log counts. We define by $lo(\lambda_{ng})$ the predicted value of square root standard deviation of $y_{ng}$.
+
+The voom precision weights are the inverse variances $w_{ng} = \left (lo(\lambda_{ng}) \right)^{-4}$. 
+
+
+## Factor model
+
+We input the $y_{ng}$ and and the precision weights $w_{ng}$ into a voom normal topic model scenario. We now fit the model 
+
+\begin{align}
+y_{ng} & = \mu_{ng} + e_{ng} \\
+       & = c_{n+} \sum_{k=1} \omega_{nk} \theta_{kg} - log_{2} (c_{n+}+1) +6 log_{2}(10) + e_{ng}
+\end{align}
+
+where $e_{ng} \sim N(0, w^2_{ng})$ where $w$ is estimated as above.
+
+But this model may not be easy to fit given the constraints on $\omega$ and $\theta$. So, instead we fit a factor analysis model 
+
+\begin{equation}
+y_{ng} + log_{2}(c_{n+}+1) = \sum_{k=1}^{K} \lambda_{nk}f_{kg}  + e_{ng}
+\end{equation}
+
+where $\lambda$ and $f$ comprise of all non-negative entries. Next we can impose sparsity constraints on $\lambda$ and $f$ as done in `pmd` or in `flash`.
+
+The other way of handling it would be to fit
+
+\begin{equation}
+y_{ng} = \sum_{k=1}^{K} \lambda_{nk}f_{kg}  + e_{ng}
+\end{equation}
+
+where we impose no constarints on $\lambda$ and $f$. But the previous model seems more meaningful to me.
+
+
+## Challenges
+
+The main challenge is to incorporate the fact that the precision weights are different across samples and across genes and athey are known. Right now, PMD can handle non-negative $\lambda$ and $f$ and also can impose various sparsity constraints (non-adaptive). But it does not take into account the fixed precision weights varying across samples and genes as here. 
+
+As for applying `flash`, we need both the non-negativity constraint and the unequal precision weights flexibility.
+
+
+
+
